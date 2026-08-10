@@ -30,7 +30,7 @@ CPU 为 Ryzen 7 7745HX（8C/16T），显卡为 AMD Radeon iGPU 与 RTX 4060 Lapt
 - `HID_EVENT22`
 - `HID_EVENT23`
 
-第一版采集脚本在 Windows PowerShell 5.1 枚举 CIM 方法集合时触发兼容性错误，因此没有记录实例名；采集脚本已经修复。官方应用固定使用 `MICommonInterface.InstanceName='ACPI\\PNP0C14\\MIFS_0'`。
+修正后的精确白名单探测确认活动实例为 `MICommonInterface.InstanceName='ACPI\\PNP0C14\\MIFS_0'`，14 个官方 GET 均成功；功能 20 被刻意跳过，且未执行 SET。
 
 ## 写入白名单建议
 

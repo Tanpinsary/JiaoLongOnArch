@@ -14,7 +14,7 @@ Linux 上游已经在 2026 年合入 [`bitland-mifs-wmi`](https://github.com/tor
 4. 为内核自带驱动提供安全、可确认的用户态控制工具；
 5. 将真机发现的字段错误或缺失功能直接修复到 Linux 上游。
 
-Windows 报告已确认本机为 `Jiaolong Series MRID6` / `MRID6-23` / BIOS `MRID6_23_P_V35`，且 `MICommonInterface` 与 HID 事件类存在。下一阶段需要从 Arch 7.1 真机读取两个 WMI GUID 和上游驱动节点。
+Windows 报告已确认本机为 `Jiaolong Series MRID6` / `MRID6-23` / BIOS `MRID6_23_P_V35`，活动实例为 `ACPI\\PNP0C14\\MIFS_0`；精确白名单下的 14 个 GET 全部成功。机器当前处于独显直连 1，安装 Arch 前应先通过 Windows/BIOS 切回 Hybrid 0。下一阶段需要从 Arch 7.1 真机读取两个 WMI GUID 和上游驱动节点。
 
 ## 已知固件接口
 
@@ -23,7 +23,7 @@ Windows 报告已确认本机为 `Jiaolong Series MRID6` / `MRID6-23` / BIOS `MR
 - WMI 方法 ID：`1`
 - 32 字节请求：字节 1 为操作码，字节 3 为功能号，字节 4 起为参数
 
-协议细节见 [`docs/protocol.md`](docs/protocol.md)，目标 DMI 见 [`docs/hardware.md`](docs/hardware.md)，内核与 Arch 集成状态见 [`docs/upstream-status.md`](docs/upstream-status.md)，官方 Windows 样本记录见 [`docs/windows-package.md`](docs/windows-package.md)，真机步骤见 [`docs/test-plan.md`](docs/test-plan.md)。
+协议细节见 [`docs/protocol.md`](docs/protocol.md)，目标 DMI 见 [`docs/hardware.md`](docs/hardware.md)，Windows 固件读取结果见 [`docs/windows-read-results.md`](docs/windows-read-results.md)，内核与 Arch 集成状态见 [`docs/upstream-status.md`](docs/upstream-status.md)，官方 Windows 样本记录见 [`docs/windows-package.md`](docs/windows-package.md)，真机步骤见 [`docs/test-plan.md`](docs/test-plan.md)。
 
 ## Arch 内核驱动
 

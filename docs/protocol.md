@@ -23,7 +23,7 @@ Windows WMI 类名为 `MICommonInterface`，实例通常为 `ACPI\\PNP0C14\\MIFS
 
 ## 数据包
 
-输入和 Linux 上游所使用的输出视图均为 32 字节：
+输入固定为 32 字节：
 
 ```text
 offset  size  含义
@@ -31,13 +31,11 @@ offset  size  含义
 1       1     操作：0xFA GET，0xFB SET
 2       1     保留，发送 0
 3       1     功能号
-4       28    参数或返回数据
+4       28    SET 参数
 ```
 
-对应结构：
-
 ```c
-struct mifs_packet {
+struct mifs_input {
     uint8_t reserved0;
     uint8_t operation;
     uint8_t reserved2;
@@ -45,6 +43,8 @@ struct mifs_packet {
     uint8_t payload[28];
 } __attribute__((packed));
 ```
+
+BMof 方法签名的输出是 `uint8 OutData[30]` 加单独的 `uint16 Reserved`。MRID6-23 真机在 Windows 中确认 `OutData` 长度为 30，返回头位于偏移 0–3，值从偏移 4 开始。Linux WMI buffer API会展平全部输出参数；上游驱动用 32 字节结构读取前部字段，因此不能把 Windows `OutData` 的 30 字节长度误判为固件返回过短。
 
 Linux 7.1 使用新的 WMI buffer marshalling API。旧版 Linux 7.0 和 6.18 LTS 只有 `wmidev_evaluate_method()`，但本项目不再发布与内核驱动争抢同一 GUID 的回移模块；推荐直接使用 Arch 当前 7.1 系列内核。
 
@@ -90,6 +90,8 @@ Linux 上游把功能 13 的返回数据解释为：
 - `payload[0..1]`：CPU RPM
 - `payload[2..3]`：GPU RPM
 - `payload[6..7]`：SYS RPM
+
+Windows 真机样本返回 `C5 13 B9 13 00 00 00 00`，little-endian 解释为 5061、5049、0 RPM；这确认了方法返回字段的字节序，但没有确认通道标签。
 
 官方 0.3.15 只把第一个字段显示为笼统的“FanSpeed”，没有给两个字段贴 CPU/GPU 标签；公开的 `JiaoLongControl` 则把前两个字段显示为 GPU、CPU，顺序与上游相反。首轮真机测试必须分别制造 CPU-only 和 GPU-only 负载，对比字段变化后再确定标签。确认前只能称为 fan channel 0/1，不能据此控制风扇。
 
