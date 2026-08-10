@@ -1,0 +1,443 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-2.0-or-later
+"""Conservative userspace frontend for the upstream bitland-mifs-wmi driver."""
+
+from __future__ import annotations
+
+import argparse
+import gzip
+import json
+import os
+import sys
+from pathlib import Path
+from typing import Any
+
+CONTROL_GUID = "B60BFB48-3E5B-49E4-A0E9-8CFFE1B3434B"
+EVENT_GUID = "46C93E13-EE9B-4262-8488-563BCA757FEF"
+DRIVER_NAME = "bitland-mifs-wmi"
+SYSFS_ROOT = Path(os.environ.get("JIAOLONG_SYSFS_ROOT", "/")).resolve()
+
+ALLOWED_DMI = {
+    "sys_vendor": "MECHREVO",
+    "product_name": "Jiaolong Series MRID6",
+    "product_version": "1",
+    "board_vendor": "MECHREVO",
+    "board_name": "MRID6-23",
+    "board_version": "Base Board Version",
+    "bios_vendor": "INSYDE Corp.",
+    "bios_version": "MRID6_23_P_V35",
+}
+
+# Official 0.3.15 uses vendor values 2/0/1 respectively. Linux "performance"
+# maps to the unverified vendor full-speed value 3, so this tool never exposes it.
+PROFILE_MAP = {
+    "quiet": "low-power",
+    "balanced": "balanced",
+    "performance": "balanced-performance",
+}
+GPU_MODES = ("hybrid", "discrete")
+KEYBOARD_MODES = ("off", "cyclic", "fixed", "custom")
+
+
+class JiaolongError(RuntimeError):
+    """A safe, user-facing validation or sysfs error."""
+
+
+def rooted(path: str) -> Path:
+    """Resolve an absolute Linux path below the optional test sysroot."""
+    return SYSFS_ROOT / path.removeprefix("/")
+
+
+def read_text(path: Path) -> str | None:
+    try:
+        return path.read_text(encoding="utf-8", errors="replace").strip("\x00\n")
+    except (FileNotFoundError, PermissionError, OSError):
+        return None
+
+
+def find_casefold(parent: Path, expected_name: str) -> Path | None:
+    try:
+        for child in parent.iterdir():
+            if child.name.upper() == expected_name.upper():
+                return child
+    except (FileNotFoundError, PermissionError, OSError):
+        pass
+    return None
+
+
+def driver_name(device: Path | None) -> str | None:
+    if device is None:
+        return None
+    try:
+        return (device / "driver").resolve(strict=True).name
+    except (FileNotFoundError, PermissionError, OSError):
+        return None
+
+
+def collect_dmi() -> dict[str, str]:
+    fields = (
+        "sys_vendor",
+        "product_name",
+        "product_version",
+        "board_vendor",
+        "board_name",
+        "board_version",
+        "bios_vendor",
+        "bios_version",
+        "bios_date",
+    )
+    base = rooted("/sys/class/dmi/id")
+    return {
+        field: value
+        for field in fields
+        if (value := read_text(base / field)) is not None
+    }
+
+
+def dmi_allowlisted(dmi: dict[str, str]) -> bool:
+    return all(dmi.get(field) == value for field, value in ALLOWED_DMI.items())
+
+
+def collect_kernel_config() -> dict[str, str]:
+    wanted = {
+        "CONFIG_BITLAND_MIFS_WMI",
+        "CONFIG_ACPI_WMI",
+        "CONFIG_HWMON",
+        "CONFIG_LEDS_CLASS",
+        "CONFIG_ACPI_PLATFORM_PROFILE",
+    }
+    config: dict[str, str] = {}
+    try:
+        with gzip.open(
+            rooted("/proc/config.gz"), "rt", encoding="utf-8", errors="replace"
+        ) as stream:
+            for line in stream:
+                key, separator, value = line.strip().partition("=")
+                if separator and key in wanted:
+                    config[key] = value
+    except (FileNotFoundError, PermissionError, OSError):
+        pass
+    return config
+
+
+def collect_hwmon() -> list[dict[str, Any]]:
+    devices: list[dict[str, Any]] = []
+    for hwmon in sorted(rooted("/sys/class/hwmon").glob("hwmon*")):
+        if read_text(hwmon / "name") != "bitland_mifs":
+            continue
+        values: dict[str, str] = {}
+        for pattern in ("temp*_input", "fan*_input", "fan*_label"):
+            for item in sorted(hwmon.glob(pattern)):
+                if (value := read_text(item)) is not None:
+                    values[item.name] = value
+        devices.append({"path": str(hwmon), "values": values})
+    return devices
+
+
+def find_profile_device() -> Path | None:
+    for device in sorted(rooted("/sys/class/platform-profile").glob("*")):
+        if read_text(device / "name") == DRIVER_NAME:
+            return device
+    return None
+
+
+def collect_profiles() -> list[dict[str, Any]]:
+    profiles: list[dict[str, Any]] = []
+    for device in sorted(rooted("/sys/class/platform-profile").glob("*")):
+        values = {
+            key: value
+            for key in ("name", "choices", "profile")
+            if (value := read_text(device / key)) is not None
+        }
+        if values:
+            profiles.append({"path": str(device), "values": values})
+
+    legacy = {
+        path.removeprefix("/"): value
+        for path in (
+            "/sys/firmware/acpi/platform_profile",
+            "/sys/firmware/acpi/platform_profile_choices",
+        )
+        if (value := read_text(rooted(path))) is not None
+    }
+    if legacy:
+        profiles.append({"path": str(rooted("/sys/firmware/acpi")), "values": legacy})
+    return profiles
+
+
+def find_keyboard_led() -> Path | None:
+    for device in sorted(rooted("/sys/class/leds").glob("*")):
+        lowered = device.name.lower()
+        if lowered.startswith(f"{DRIVER_NAME}::") and "kbd_backlight" in lowered:
+            return device
+    return None
+
+
+def collect_leds() -> list[dict[str, str]]:
+    leds: list[dict[str, str]] = []
+    for device in sorted(rooted("/sys/class/leds").glob("*")):
+        lowered = device.name.lower()
+        if "bitland" not in lowered and "kbd_backlight" not in lowered:
+            continue
+        entry = {"path": str(device), "name": device.name}
+        if (brightness := read_text(device / "brightness")) is not None:
+            entry["brightness"] = brightness
+        if (maximum := read_text(device / "max_brightness")) is not None:
+            entry["max_brightness"] = maximum
+        leds.append(entry)
+    return leds
+
+
+def collect_status() -> dict[str, Any]:
+    wmi_devices = rooted("/sys/bus/wmi/devices")
+    control = find_casefold(wmi_devices, CONTROL_GUID)
+    event = find_casefold(wmi_devices, EVENT_GUID)
+    firmware_values: dict[str, str] = {}
+    if control is not None:
+        for name in ("gpu_mode", "kb_mode"):
+            if (value := read_text(control / name)) is not None:
+                firmware_values[name] = value
+
+    dmi = collect_dmi()
+    return {
+        "tool": "JiaoLongOnArch/jiaolongctl",
+        "kernel": os.uname().release,
+        "sysfs_root": str(SYSFS_ROOT),
+        "dmi": dmi,
+        "write_allowlisted": dmi_allowlisted(dmi),
+        "kernel_config": collect_kernel_config(),
+        "wmi": {
+            "control_guid": CONTROL_GUID,
+            "control_present": control is not None,
+            "control_driver": driver_name(control),
+            "event_guid": EVENT_GUID,
+            "event_present": event is not None,
+            "event_driver": driver_name(event),
+            "values": firmware_values,
+        },
+        "hwmon": collect_hwmon(),
+        "platform_profiles": collect_profiles(),
+        "leds": collect_leds(),
+        "disabled_interfaces": {
+            "fan_boost": "official Jiaolong payload differs from upstream",
+            "gpu_mode_uma": "not used by official Jiaolong 0.3.15",
+            "full_speed_profile": "vendor value 3 is not used by official Jiaolong 0.3.15",
+            "manual_fan": "not exposed by the current upstream driver and untested",
+        },
+    }
+
+
+def print_text(status: dict[str, Any]) -> None:
+    wmi = status["wmi"]
+    print(f"Kernel: {status['kernel']}")
+    print(
+        "Exact write allowlist: "
+        + ("matched" if status["write_allowlisted"] else "NOT matched")
+    )
+    print("DMI:")
+    for key, value in status["dmi"].items():
+        print(f"  {key}: {value}")
+    print("WMI:")
+    print(
+        f"  control: {'present' if wmi['control_present'] else 'absent'}"
+        f"; driver={wmi['control_driver'] or 'unbound'}"
+    )
+    print(
+        f"  event:   {'present' if wmi['event_present'] else 'absent'}"
+        f"; driver={wmi['event_driver'] or 'unbound'}"
+    )
+    for key, value in wmi["values"].items():
+        print(f"  {key}: {value}")
+    print("Kernel config:")
+    if status["kernel_config"]:
+        for key, value in status["kernel_config"].items():
+            print(f"  {key}={value}")
+    else:
+        print("  /proc/config.gz unavailable")
+    print(f"hwmon devices: {len(status['hwmon'])}")
+    for device in status["hwmon"]:
+        print(f"  {device['path']}")
+        for key, value in device["values"].items():
+            print(f"    {key}: {value}")
+    print(f"platform profile devices: {len(status['platform_profiles'])}")
+    for device in status["platform_profiles"]:
+        print(f"  {device['path']}")
+        for key, value in device["values"].items():
+            print(f"    {key}: {value}")
+    print(f"keyboard LEDs: {len(status['leds'])}")
+    for device in status["leds"]:
+        print(
+            f"  {device['name']}: "
+            f"{device.get('brightness', '?')}/{device.get('max_brightness', '?')}"
+        )
+    print("Intentionally disabled:")
+    for key, reason in status["disabled_interfaces"].items():
+        print(f"  {key}: {reason}")
+
+
+def require_write_ready() -> tuple[dict[str, Any], Path]:
+    status = collect_status()
+    if not status["write_allowlisted"]:
+        raise JiaolongError(
+            "DMI/BIOS does not exactly match the reviewed MRID6-23 V35 allowlist"
+        )
+
+    wmi = status["wmi"]
+    if not wmi["control_present"]:
+        raise JiaolongError(f"required WMI control GUID {CONTROL_GUID} is absent")
+    if wmi["control_driver"] != DRIVER_NAME:
+        raise JiaolongError(
+            f"WMI control device is not bound to {DRIVER_NAME}; current="
+            f"{wmi['control_driver'] or 'unbound'}"
+        )
+    if SYSFS_ROOT == Path("/") and os.geteuid() != 0:
+        raise JiaolongError("firmware control requires root; status does not")
+
+    control = find_casefold(rooted("/sys/bus/wmi/devices"), CONTROL_GUID)
+    if control is None:
+        raise JiaolongError("WMI control device disappeared during validation")
+    return status, control
+
+
+def write_sysfs(path: Path, value: str, *, dry_run: bool, verify: bool = True) -> None:
+    if dry_run:
+        print(f"DRY-RUN: write {value!r} to {path}")
+        return
+    try:
+        with path.open("w", encoding="ascii") as stream:
+            stream.write(value + "\n")
+    except OSError as error:
+        raise JiaolongError(f"failed to write {path}: {error}") from error
+
+    if verify:
+        observed = read_text(path)
+        if observed != value:
+            raise JiaolongError(
+                f"write did not read back as requested: expected={value!r}, "
+                f"observed={observed!r}"
+            )
+
+
+def set_profile(mode: str, *, dry_run: bool) -> None:
+    require_write_ready()
+    profile = find_profile_device()
+    if profile is None:
+        raise JiaolongError(f"no {DRIVER_NAME} platform-profile device found")
+
+    value = PROFILE_MAP[mode]
+    choices = (read_text(profile / "choices") or "").split()
+    if value not in choices:
+        raise JiaolongError(f"profile {value!r} is not offered; choices={choices}")
+    write_sysfs(profile / "profile", value, dry_run=dry_run)
+    print(f"Selected vendor {mode} profile ({value}).")
+
+
+def set_gpu_mode(mode: str, *, confirmed: bool, dry_run: bool) -> None:
+    _, control = require_write_ready()
+    if not confirmed:
+        raise JiaolongError(
+            "GPU/MUX changes require --confirm-reboot-required; this tool never reboots automatically"
+        )
+    if not (control / "gpu_mode").exists():
+        raise JiaolongError("upstream driver does not expose gpu_mode")
+
+    # Firmware selection normally becomes active only after reboot, so do not
+    # require an immediate readback match.
+    write_sysfs(control / "gpu_mode", mode, dry_run=dry_run, verify=False)
+    print(f"Requested GPU mode {mode}; reboot is required. No reboot was started.")
+
+
+def set_keyboard_brightness(value: int, *, dry_run: bool) -> None:
+    require_write_ready()
+    led = find_keyboard_led()
+    if led is None:
+        raise JiaolongError(f"no {DRIVER_NAME} keyboard LED device found")
+    maximum_text = read_text(led / "max_brightness")
+    if maximum_text is None or int(maximum_text) != 3:
+        raise JiaolongError(f"unexpected keyboard max_brightness={maximum_text!r}")
+    write_sysfs(led / "brightness", str(value), dry_run=dry_run)
+    print(f"Set keyboard brightness to {value}/3.")
+
+
+def set_keyboard_mode(mode: str, *, dry_run: bool) -> None:
+    _, control = require_write_ready()
+    if not (control / "kb_mode").exists():
+        raise JiaolongError("upstream driver does not expose kb_mode")
+    write_sysfs(control / "kb_mode", mode, dry_run=dry_run)
+    print(f"Set keyboard mode to {mode}.")
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Inspect and conservatively control the upstream bitland-mifs-wmi driver"
+    )
+    parser.add_argument("--json", action="store_true", help="emit status as JSON")
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="validate and print writes without issuing them",
+    )
+    commands = parser.add_subparsers(dest="command")
+    commands.add_parser("status", help="read hardware and driver status")
+
+    profile = commands.add_parser(
+        "profile",
+        help="select only official Jiaolong quiet/balanced/performance values",
+    )
+    profile.add_argument("mode", choices=tuple(PROFILE_MAP))
+
+    gpu = commands.add_parser("gpu-mode", help="request Hybrid or Discrete MUX mode")
+    gpu.add_argument("mode", choices=GPU_MODES)
+    gpu.add_argument("--confirm-reboot-required", action="store_true")
+
+    brightness = commands.add_parser(
+        "keyboard-brightness", help="set official keyboard brightness level"
+    )
+    brightness.add_argument("level", type=int, choices=range(4))
+
+    keyboard_mode = commands.add_parser("keyboard-mode", help="set keyboard RGB mode")
+    keyboard_mode.add_argument("mode", choices=KEYBOARD_MODES)
+    return parser
+
+
+def main() -> int:
+    args = build_parser().parse_args()
+    command = args.command or "status"
+    try:
+        if command == "status":
+            status = collect_status()
+            if args.json:
+                print(json.dumps(status, ensure_ascii=False, indent=2, sort_keys=True))
+            else:
+                print_text(status)
+            wmi = status["wmi"]
+            if not wmi["control_present"]:
+                return 2
+            if wmi["control_driver"] != DRIVER_NAME:
+                return 3
+            return 0
+
+        if args.json:
+            raise JiaolongError("--json is only valid for status")
+        if command == "profile":
+            set_profile(args.mode, dry_run=args.dry_run)
+        elif command == "gpu-mode":
+            set_gpu_mode(
+                args.mode,
+                confirmed=args.confirm_reboot_required,
+                dry_run=args.dry_run,
+            )
+        elif command == "keyboard-brightness":
+            set_keyboard_brightness(args.level, dry_run=args.dry_run)
+        elif command == "keyboard-mode":
+            set_keyboard_mode(args.mode, dry_run=args.dry_run)
+        else:
+            raise JiaolongError(f"unsupported command: {command}")
+        return 0
+    except JiaolongError as error:
+        print(f"error: {error}", file=sys.stderr)
+        return 4
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

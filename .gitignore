@@ -1,0 +1,31 @@
+# Operating systems
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Kernel module build output
+*.cmd
+*.ko
+*.mod
+*.mod.c
+*.o
+*.order
+*.symvers
+.tmp_versions/
+Module.symvers
+modules.order
+
+# Probe reports
+JiaoLongOnArch-Probe-*.zip
+JiaoLongOnArch-Probe-*/
+
+# Local proprietary artifacts: never commit vendor installers or binaries.
+artifacts/*
+!artifacts/README.md
+
+# Packaging
+*.pkg.tar.*
+pkg/
+src/
