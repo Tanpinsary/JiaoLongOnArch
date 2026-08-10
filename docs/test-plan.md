@@ -7,13 +7,13 @@
 - 已确认 DMI：`Jiaolong Series MRID6` / `MRID6-23` / BIOS `MRID6_23_P_V35`。
 - 已确认活动实例 `ACPI\\PNP0C14\\MIFS_0` 与 HID 事件类存在。
 - 精确白名单下 14 个官方 GET 全部成功，功能 20 被刻意跳过。
-- 已确认当前为独显直连、平衡 profile、圆口 DC，两个风扇字段约 5,050 RPM。
-- 未执行任何 SET。
+- 首份报告为独显直连、平衡 profile、圆口 DC，两个风扇字段约 5,050 RPM。
+- 已通过官方控制中心完成 Discrete 1 → Hybrid 0，重启后的 GET 确认生效；探测脚本本身未执行任何 SET。
 
 ## 阶段 1：Arch Live 只读绑定
 
 1. 使用包含 Linux 7.1 或更新内核的 Arch 安装介质。
-2. 本机当前为 Discrete 1；先用 Windows 官方控制中心或 BIOS 切换到 Hybrid 0，重启并确认后再进入 Arch Live，同时不要删除 Windows。
+2. 本机已经切换并确认 Hybrid 0；保持该状态进入 Arch Live，同时不要删除 Windows。
 3. 检查并加载驱动：
 
 ```bash

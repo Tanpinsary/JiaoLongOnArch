@@ -14,7 +14,7 @@ Linux 上游已经在 2026 年合入 [`bitland-mifs-wmi`](https://github.com/tor
 4. 为内核自带驱动提供安全、可确认的用户态控制工具；
 5. 将真机发现的字段错误或缺失功能直接修复到 Linux 上游。
 
-Windows 报告已确认本机为 `Jiaolong Series MRID6` / `MRID6-23` / BIOS `MRID6_23_P_V35`，活动实例为 `ACPI\\PNP0C14\\MIFS_0`；精确白名单下的 14 个 GET 全部成功。机器当前处于独显直连 1，安装 Arch 前应先通过 Windows/BIOS 切回 Hybrid 0。下一阶段需要从 Arch 7.1 真机读取两个 WMI GUID 和上游驱动节点。
+Windows 报告已确认本机为 `Jiaolong Series MRID6` / `MRID6-23` / BIOS `MRID6_23_P_V35`，活动实例为 `ACPI\\PNP0C14\\MIFS_0`；精确白名单下的 14 个 GET 全部成功。用户已经通过官方控制中心完成 Discrete 1 → Hybrid 0 并重启复查。下一阶段需要从 Arch 7.1 真机读取两个 WMI GUID 和上游驱动节点。
 
 ## 已知固件接口
 
