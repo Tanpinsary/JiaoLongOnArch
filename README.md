@@ -56,6 +56,14 @@ Set-ExecutionPolicy -Scope Process Bypass
 
 脚本会在桌面生成 `JiaoLongOnArch-Probe-*.zip`。它不会读取机器序列号，不会调用固件控制方法，也不会修改控制中心设置。
 
+精确 DMI 已确认后，可以另行运行：
+
+```powershell
+.\tools\probe-windows-mifs-readonly.ps1
+```
+
+该脚本严格匹配 MRID6-23/V35，只构造操作码 `0xFA` 的 GET 请求，并特意跳过与上游存在参数冲突的功能 20；输出为桌面的 `JiaoLongOnArch-MIFS-ReadOnly-*.json`。
+
 ## Linux 检查与保守控制
 
 安装 Arch 后，第一轮只运行：
