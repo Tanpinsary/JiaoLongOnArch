@@ -45,24 +45,25 @@ CPU 热源。需要 GPU-only 对照才能继续判断。
 
 ## 下一步
 
-1. 在用户桌面终端产生 NVIDIA-only 负载。该终端有 `/dev/nvidia*`，
-   而当前研究 shell 没有，因此由用户启动负载，本仓库只读采样：
+1. 在用户桌面终端运行已提供的同步加载脚本。该终端有 `/dev/nvidia*`，
+   而当前研究 shell 没有：
 
    ```bash
    cd /home/tanp/Projects/jiaolongonarch
-   nvidia-smi --query-gpu=temperature.gpu,utilization.gpu,power.draw \
-     --format=csv -l 1 -f /home/tanp/Projects/gpu-load-gpu.csv &
-   __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia vkcube &
-   ./tools/fan-sample.py --no-gpu --duration 300 --interval 1 \
-     > /home/tanp/Projects/gpu-load-fans.csv
-   kill %2 %1
+   ./tools/stage2-gpu-load.sh 240 120
    ```
 
-   运行期间另开一个终端确认负载确实落在 NVIDIA GPU：
+   脚本会同时启动 2 个不限制帧率的 vkcube、3 路 `hevc_nvenc` 编码、
+   NVIDIA 遥测 logger 和只读风扇采样器；加载 240 秒后再采样 120 秒
+   冷却曲线，并把结果写入：
 
-   ```bash
-   nvidia-smi --query-gpu=utilization.gpu,temperature.gpu,power.draw --format=csv
+   ```text
+   /home/tanp/Projects/JiaoLongOnArch-stage2-gpu-*/fans.csv
+   /home/tanp/Projects/JiaoLongOnArch-stage2-gpu-*/gpu.csv
    ```
+
+   运行期间保持至少一个 vkcube 窗口可见；脚本每 10 秒打印一次
+   `temperature.gpu / utilization.gpu / power.draw`。
 
 2. 对比 CPU-only、GPU-only、空闲三段曲线的 fan1/fan2 响应。
 3. 若 GPU-only 仍让两者同步上升，则向上游报告：功能 13 前两个字段

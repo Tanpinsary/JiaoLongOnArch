@@ -15,6 +15,20 @@ class ProbeScriptSafetyTest(unittest.TestCase):
         self.assertNotIn("Invoke-CimMethod", script)
         self.assertNotIn("Invoke-WmiMethod", script)
 
+    def test_stage2_gpu_runner_has_no_sysfs_write_path(self) -> None:
+        script = (PROJECT_ROOT / "tools/stage2-gpu-load.sh").read_text(encoding="utf-8")
+        code = "\n".join(
+            line for line in script.splitlines() if not line.lstrip().startswith("#")
+        )
+        self.assertNotIn("> /sys", code)
+        self.assertNotIn('>"/sys', code)
+        self.assertNotIn("tee /sys", code)
+        self.assertNotIn("dd of=/sys", code)
+        self.assertNotIn("platform_profile", code)
+        self.assertNotIn("gpu_mode", code)
+        self.assertNotIn("kb_mode", code)
+        self.assertNotIn("brightness", code)
+
     def test_mifs_probe_contains_get_opcode_only_and_excludes_function_20(self) -> None:
         script = (PROJECT_ROOT / "tools/probe-windows-mifs-readonly.ps1").read_text(
             encoding="utf-8"
