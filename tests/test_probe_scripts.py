@@ -43,6 +43,17 @@ class ProbeScriptSafetyTest(unittest.TestCase):
         self.assertNotIn("0x4F", code)
         self.assertIn('sleep "$wait_seconds"', script)
 
+    def test_stage5_check_has_no_sysfs_write_path(self) -> None:
+        script = (PROJECT_ROOT / "tools/stage5-check.sh").read_text(encoding="utf-8")
+        code = "\n".join(
+            line for line in script.splitlines() if not line.lstrip().startswith("#")
+        )
+        self.assertNotIn("> /sys", code)
+        self.assertNotIn('>"/sys', code)
+        self.assertNotIn("tee /sys", code)
+        self.assertNotIn("fan_boost", code)
+        self.assertNotIn("gpu_mode", code)
+
     def test_mifs_probe_contains_get_opcode_only_and_excludes_function_20(self) -> None:
         script = (PROJECT_ROOT / "tools/probe-windows-mifs-readonly.ps1").read_text(
             encoding="utf-8"

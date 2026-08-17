@@ -113,9 +113,30 @@ sudo ./tools/jiaolongctl gpu-mode discrete --confirm-reboot-required
 Discrete 验证项中的 GPU-only 风扇识别已完成：hashcat 将实际功耗
 压到约 80 W，fan1/fan2 仍同步，阶段 2 结论已归档。
 
-## 阶段 5：挂起、恢复与长期使用
+## 阶段 5：挂起、恢复与长期使用（当前下一步）
 
 对每个已验证 profile 完成多次挂起/恢复、冷启动、热重启和 AC 插拔。观察内核日志中的 WMI/ACPI 错误。
+
+当前环境：Discrete、KDE Wayland、Arch-only、BIOS 作为恢复路径。
+每轮测试使用只读检查器：
+
+```bash
+./tools/stage5-check.sh <label>
+```
+
+建议第一轮先做 `balanced-performance`：
+
+1. 基线：`./tools/stage5-check.sh balanced-performance-before`；
+2. 挂起：`systemctl suspend`，用电源键/开盖唤醒；
+3. 恢复后：`./tools/stage5-check.sh balanced-performance-after-suspend`；
+4. 检查 KDE Wayland、外接显示器、键盘热键、`nvidia-smi`；
+5. 重复挂起/恢复至少 3 次；
+6. AC 圆口插拔一次，记录前后 `ADP1 online` 和 hwmon；
+7. 热重启一次，重启后运行 stage5-check；
+8. 冷启动一次，重启后运行 stage5-check。
+
+通过条件：`jiaolongctl status=0`，WMI/ACPI 无新错误，profile 与
+`gpu_mode` 保持预期，Wayland 恢复后可用。
 
 ## 明确禁止
 
