@@ -39,6 +39,14 @@
 
 先记录空闲状态，再分别制造 CPU-only 与 GPU-only 负载，每 1–2 秒记录三个 fan input、CPU 温度和 `nvidia-smi` 温度。全过程由 EC 自动控扇，不写任何风扇接口。
 
+只读采样器已提供：
+
+```bash
+./tools/fan-sample.py --duration 300 --interval 1 > fan-idle.csv
+```
+
+默认会额外调用 `nvidia-smi --query-gpu=temperature.gpu`；无 NVIDIA 驱动或只需要 hwmon 时加 `--no-gpu`。该工具没有任何 sysfs/文件写入路径，单元测试已覆盖。
+
 目标：确定功能 13 的前两个 RPM 字段究竟对应 CPU、GPU，还是主循环/辅助循环；同时核对 WMI 事件 RPM 字节序。确认前不向上游提交标签修复。
 
 ## 阶段 3：低风险、可逆写入
