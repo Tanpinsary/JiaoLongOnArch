@@ -137,6 +137,13 @@ sudo sh -c 'echo 46C93E13-EE9B-4262-8488-563BCA757FEF-0 > /sys/bus/wmi/drivers/b
 该操作不写固件，但会改变系统热键驱动绑定；持久化方案待上游修复确认后
 再选择 `modprobe.d` 黑名单或 udev `driver_override` 规则。
 
+## 重启复现
+
+2026-08-17 系统重启后再次运行 `jiaolongctl status`，事件 GUID 仍然绑定
+`redmi-wmi`，说明这不是一次性模块加载顺序，而是稳定的驱动 alias 冲突。
+控制 GUID、hwmon、platform profile、键盘 LED、`gpu_mode=hybrid` 和
+`kb_mode=fixed` 均再次只读正常。
+
 ## 阶段 1 后续
 
 - 解决事件 GUID 绑定后重新运行 `jiaolongctl status` 和只读采集；
