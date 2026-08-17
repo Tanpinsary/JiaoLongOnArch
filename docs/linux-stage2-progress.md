@@ -74,19 +74,42 @@ CPU 热源。需要 GPU-only 对照才能继续判断。
 在 Discrete 下只把实际功耗从 32 W 级提高到约 44 W，仍未压满 TGP。
 还需要 hashcat 这类计算密集负载。
 
-## 结论与后续
+## Discrete + hashcat 80W 最终测试（2026-08-18 00:15）
 
-- CPU-only 已完成：fan1/fan2 同步，相关系数约 0.976；
-- Discrete 下 vkcube + NVENC 已完成：fan1/fan2 仍同步，相关系数
-  0.995，但 GPU 功耗只有 43.75 W，不能视为完整 GPU-only 验证；
-- 下一轮使用 hashcat/opencl-nvidia 在 Discrete 下产生真实计算负载，
-  目标实际 `power.draw` 接近 80 W；
-- `hashcat -I` 已确认 NVIDIA 为 OpenCL Backend Device #1（CUDA SDK 未装，
-  hashcat 回退 OpenCL，可用）：
+`hashcat -b --benchmark-all -d 1` 成功把 dGPU 压到 enforced power limit：
 
-  ```bash
-  HASHCAT_DEVICE=1 ./tools/stage2-gpu-load.sh 240 120
-  ```
+| 指标 | 值 |
+|---|---|
+| 高 utilization 时长 | 约 191 秒 |
+| power.draw 均值/中位数/最大 | 75.4 / 79.9 / 80.59 W |
+| GPU 温度均值/最大 | 77.3 / 80.0°C |
+| SM 时钟均值 | 2,462 MHz |
+| enforced.power.limit | 80 W |
+| CPU temp1 最大 | 99°C |
+| fan1 负载段 | 2,665 → 5,109 RPM，均值 4,651 RPM |
+| fan2 负载段 | 2,648 → 5,061 RPM，均值 4,668 RPM |
+| fan1 - fan2 | -127 到 +128 RPM，均值 -17 RPM |
+| fan1/fan2 相关系数 | **0.9971** |
+| fan3 | 始终 0 RPM |
 
-- 若 hashcat 下 GPU 热负载足够而 fan1/fan2 仍同步，则可确认功能 13
-  前两个字段在本机不能按 CPU/GPU 独立标签区分。
+分析：
+
+- 这是本项目第一次真实接近 TGP 的 GPU-only 计算负载；
+- 即使 GPU 功耗达到 80 W、GPU 温度 80°C，fan1 与 fan2 仍然几乎完全
+  同步升到约 5,000 RPM；
+- CPU 温度同时升到 99°C，说明该模具 CPU/GPU 共用热系统，CPU 温度
+  传感器会被 dGPU 热量显著加热；
+- 因此功能 13 的前两个字段不能用于区分“CPU 风扇”和“GPU 风扇”。
+
+## 阶段 2 最终结论
+
+1. `fan1` 与 `fan2` 在 CPU-only、GPU-only 和 80 W GPU 计算负载下都
+   同步响应，相关系数分别为 0.976、0.995、0.997。
+2. 上游 `fan1_label=CPU`、`fan2_label=GPU` 在 MRID6-23 V35 上
+   **无法验证，且现有数据不支持这种区分**。
+3. `fan3` 始终为 0 RPM。
+4. 风扇通道只能称为 `fan channel 0` / `fan channel 1`；建议向上游
+   报告并推动将标签改为不含 CPU/GPU 语义的名称，或至少按机型 quirk
+   屏蔽这两个标签。
+5. 功能 13 的 RPM little-endian 解释继续成立：80 W 测试中两个字段
+   在 2,600–5,100 RPM 范围内变化，大端解释会得到不可能的数值。
