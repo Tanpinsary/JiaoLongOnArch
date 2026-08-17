@@ -79,7 +79,14 @@ CPU 热源。需要 GPU-only 对照才能继续判断。
 - CPU-only 已完成：fan1/fan2 同步，相关系数约 0.976；
 - Discrete 下 vkcube + NVENC 已完成：fan1/fan2 仍同步，相关系数
   0.995，但 GPU 功耗只有 43.75 W，不能视为完整 GPU-only 验证；
-- 下一轮必须使用 hashcat/opencl-nvidia 在 Discrete 下产生真实计算
-  负载，目标实际 `power.draw` 接近 80 W；
+- 下一轮使用 hashcat/opencl-nvidia 在 Discrete 下产生真实计算负载，
+  目标实际 `power.draw` 接近 80 W；
+- `hashcat -I` 已确认 NVIDIA 为 OpenCL Backend Device #1（CUDA SDK 未装，
+  hashcat 回退 OpenCL，可用）：
+
+  ```bash
+  HASHCAT_DEVICE=1 ./tools/stage2-gpu-load.sh 240 120
+  ```
+
 - 若 hashcat 下 GPU 热负载足够而 fan1/fan2 仍同步，则可确认功能 13
   前两个字段在本机不能按 CPU/GPU 独立标签区分。
