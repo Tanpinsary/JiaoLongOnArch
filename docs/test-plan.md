@@ -10,24 +10,22 @@
 - 首份报告为独显直连、平衡 profile、圆口 DC，两个风扇字段约 5,050 RPM。
 - 已通过官方控制中心完成 Discrete 1 → Hybrid 0，重启后的 GET 确认生效；探测脚本本身未执行任何 SET。
 
-## 阶段 1：Arch 真机只读绑定（进行中）
+## 阶段 1：Arch 真机只读绑定（通过；绑定需要持久化）
 
 真机结果与完整分析见 `docs/linux-stage1-results.md`。当前状态：
 
 - 内核 7.1.6-arch1-1，`CONFIG_BITLAND_MIFS_WMI=m`；
 - 控制 GUID `...-4` 正确绑定 `bitland-mifs-wmi`；
-- 事件 GUID `...-0` 被 `redmi-wmi` 抢先绑定，阶段 1 未通过；
+- 事件 GUID `...-0` 默认被 `redmi-wmi` 抢先绑定；已通过 sysfs unbind/bind
+  手动重绑到 `bitland-mifs-wmi`，`jiaolongctl status` 返回 0；
+- 重绑后出现 `Bitland MIFS WMI hotkeys` input 设备；
 - hwmon、platform profile、键盘 LED、`gpu_mode=hybrid`、`kb_mode=fixed` 均只读正常；
-- `jiaolongctl status` 当前返回 5，并拒绝任何固件写入。
+- 所有 `--dry-run` 控制路径已完成非 root 校验，未写任何 sysfs。
 
-解决事件 GUID 冲突前，继续执行：
+注意：手动重绑在重启后会失效。持久化方案待定：可以是
+`modprobe.d` 黑名单 `redmi-wmi`，或上游修复后删除本机 workaround。
 
-```bash
-./tools/jiaolongctl status
-./tools/collect-linux.sh
-```
-
-冲突修复后，阶段 1 通过条件：
+阶段 1 通过条件：
 
 - 两个预期 WMI GUID 均存在；
 - 控制与事件设备均绑定 `bitland-mifs-wmi`，且存在 `Bitland MIFS WMI hotkeys` input 设备；

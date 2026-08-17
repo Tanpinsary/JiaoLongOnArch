@@ -80,14 +80,20 @@ Set-ExecutionPolicy -Scope Process Bypass
 ./tools/jiaolongctl status
 ```
 
-`collect-linux.sh` 会生成可分享的只读报告。`jiaolongctl` 已实现精确 DMI/主板/BIOS 白名单、上游驱动绑定检查和以下受限命令，但在首份 Linux 报告审核完成前不要实际写入；可以先使用全流程校验但不写 sysfs 的 `--dry-run`：
+`collect-linux.sh` 会生成可分享的只读报告。`jiaolongctl` 已实现精确 DMI/主板/BIOS 白名单、上游驱动绑定检查和以下受限命令，但在首份 Linux 报告审核完成前不要实际写入；可以先使用全流程校验但不写 sysfs 的 `--dry-run`，它不需要 root：
 
 ```bash
-sudo ./tools/jiaolongctl --dry-run profile balanced
-sudo ./tools/jiaolongctl --dry-run keyboard-brightness 2
-sudo ./tools/jiaolongctl --dry-run keyboard-mode fixed
-sudo ./tools/jiaolongctl --dry-run gpu-mode hybrid --confirm-reboot-required
+./tools/jiaolongctl --dry-run profile balanced
+./tools/jiaolongctl --dry-run keyboard-brightness 2
+./tools/jiaolongctl --dry-run keyboard-mode fixed
+./tools/jiaolongctl --dry-run gpu-mode hybrid --confirm-reboot-required
 ```
+
+蛟龙真机在 Linux 7.1 上存在事件 GUID 与 `redmi-wmi` 的绑定冲突：
+`jiaolongctl status` 返回 5 时，需要先按
+[`docs/linux-stage1-results.md`](docs/linux-stage1-results.md)
+把事件设备重绑到 `bitland-mifs-wmi`，写入命令才会放行。实际写入命令
+仍需要 root。
 
 工具只允许官方 0.3.15 使用的安静/平衡/性能、Hybrid/Discrete、键盘亮度 0–3 和键盘模式；不提供 `fan_boost`、手动风扇、UMA 或未经蛟龙官方程序使用的全速 profile。MUX 工具永不自动重启。
 

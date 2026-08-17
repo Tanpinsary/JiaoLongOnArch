@@ -322,7 +322,7 @@ def print_text(status: dict[str, Any]) -> None:
         print(f"  {key}: {reason}")
 
 
-def require_write_ready() -> tuple[dict[str, Any], Path]:
+def require_write_ready(*, require_root: bool = True) -> tuple[dict[str, Any], Path]:
     status = collect_status()
     if not status["write_allowlisted"]:
         raise JiaolongError(
@@ -345,7 +345,7 @@ def require_write_ready() -> tuple[dict[str, Any], Path]:
             f"{wmi['event_driver'] or 'unbound'}. Resolve the shared-GUID "
             "driver collision before issuing firmware writes."
         )
-    if SYSFS_ROOT == Path("/") and os.geteuid() != 0:
+    if require_root and SYSFS_ROOT == Path("/") and os.geteuid() != 0:
         raise JiaolongError("firmware control requires root; status does not")
 
     control = prefer_bound_device(find_wmi_devices(CONTROL_GUID), DRIVER_NAME)
@@ -374,7 +374,7 @@ def write_sysfs(path: Path, value: str, *, dry_run: bool, verify: bool = True) -
 
 
 def set_profile(mode: str, *, dry_run: bool) -> None:
-    require_write_ready()
+    require_write_ready(require_root=not dry_run)
     profile = find_profile_device()
     if profile is None:
         raise JiaolongError(f"no {DRIVER_NAME} platform-profile device found")
@@ -388,7 +388,7 @@ def set_profile(mode: str, *, dry_run: bool) -> None:
 
 
 def set_gpu_mode(mode: str, *, confirmed: bool, dry_run: bool) -> None:
-    _, control = require_write_ready()
+    _, control = require_write_ready(require_root=not dry_run)
     if not confirmed:
         raise JiaolongError(
             "GPU/MUX changes require --confirm-reboot-required; this tool never reboots automatically"
@@ -403,7 +403,7 @@ def set_gpu_mode(mode: str, *, confirmed: bool, dry_run: bool) -> None:
 
 
 def set_keyboard_brightness(value: int, *, dry_run: bool) -> None:
-    require_write_ready()
+    require_write_ready(require_root=not dry_run)
     led = find_keyboard_led()
     if led is None:
         raise JiaolongError(f"no {DRIVER_NAME} keyboard LED device found")
@@ -415,7 +415,7 @@ def set_keyboard_brightness(value: int, *, dry_run: bool) -> None:
 
 
 def set_keyboard_mode(mode: str, *, dry_run: bool) -> None:
-    _, control = require_write_ready()
+    _, control = require_write_ready(require_root=not dry_run)
     if not (control / "kb_mode").exists():
         raise JiaolongError("upstream driver does not expose kb_mode")
     write_sysfs(control / "kb_mode", mode, dry_run=dry_run)

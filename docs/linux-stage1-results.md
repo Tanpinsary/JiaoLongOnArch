@@ -6,19 +6,22 @@
 
 ## 结论
 
-阶段 1 已确认大部分绑定，但**未通过**，因为事件 GUID 被
-`redmi-wmi` 抢先绑定，`bitland-mifs-wmi` 的事件设备没有建立。
-在解决该冲突前，`jiaolongctl` 拒绝任何固件写入。
+阶段 1 默认启动状态下因事件 GUID 被 `redmi-wmi` 抢先绑定而**失败**。
+通过 sysfs unbind/bind 把事件设备手动重绑到 `bitland-mifs-wmi` 后，
+阶段 1 只读检查全部通过，`jiaolongctl status` 返回 0，并出现
+`Bitland MIFS WMI hotkeys` input 设备。重启后会恢复默认冲突，因此
+还需要持久化 workaround 或上游修复。
 
-| 检查项 | 结果 |
-|---|---|
-| 内核 7.1 + `CONFIG_BITLAND_MIFS_WMI=m` | 通过 |
-| 精确 DMI/BIOS 白名单 | 通过 |
-| 控制 GUID 存在且绑定 `bitland-mifs-wmi` | 通过 |
-| 事件 GUID 存在且绑定 `bitland-mifs-wmi` | **失败：当前为 `redmi-wmi`** |
-| `hwmon` / `platform_profile` / 键盘 LED 读取 | 通过 |
-| `gpu_mode` / `kb_mode` 只读 | 通过（Hybrid / fixed） |
-| `fan_boost` | 未读取；继续保持禁用 |
+| 检查项 | 默认启动 | 手动重绑后 |
+|---|---|---|
+| 内核 7.1 + `CONFIG_BITLAND_MIFS_WMI=m` | 通过 | 通过 |
+| 精确 DMI/BIOS 白名单 | 通过 | 通过 |
+| 控制 GUID 存在且绑定 `bitland-mifs-wmi` | 通过 | 通过 |
+| 事件 GUID 存在且绑定 `bitland-mifs-wmi` | 失败（`redmi-wmi`） | 通过 |
+| `Bitland MIFS WMI hotkeys` input 设备 | 缺失 | 存在 |
+| `hwmon` / `platform_profile` / 键盘 LED 读取 | 通过 | 通过 |
+| `gpu_mode` / `kb_mode` 只读 | 通过（Hybrid / fixed） | 通过（Hybrid / fixed） |
+| `fan_boost` | 未读取；继续保持禁用 | 未读取；继续保持禁用 |
 
 ## DMI/BIOS
 
@@ -140,8 +143,21 @@ sudo sh -c 'echo 46C93E13-EE9B-4262-8488-563BCA757FEF-0 > /sys/bus/wmi/drivers/b
 ```
 
 预期会新增 `Bitland MIFS WMI hotkeys` input 设备，且 `status` 返回 0。
-该操作不写固件，但会改变系统热键驱动绑定；持久化方案待上游修复确认后
-再选择 `modprobe.d` 黑名单或 udev `driver_override` 规则。
+该操作不写固件，但会改变系统热键驱动绑定。
+
+临时重绑在重启后会失效。当前最简单的持久化方案是只在本机禁用
+`redmi-wmi` 自动加载，让 `bitland-mifs-wmi` 在下次启动时绑定事件 GUID：
+
+```bash
+sudo tee /etc/modprobe.d/jiaolong-no-redmi.conf >/dev/null <<'EOF'
+# Jiaolong 16 Pro MRID6-23: redmi-wmi and bitland-mifs-wmi declare the
+# same event GUID. Prefer the driver matching this machine.
+blacklist redmi-wmi
+EOF
+```
+
+若该模块可能被 initramfs 加载，再执行 `sudo mkinitcpio -P`；删除该文件
+即可撤销。上游修复落地后应移除本机 workaround。
 
 ## 重启复现
 
