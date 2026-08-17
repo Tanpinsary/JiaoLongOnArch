@@ -84,16 +84,11 @@ sudo ./tools/stage3-write-test.sh
 当前进度与发现：
 
 - 键盘亮度 0–3 全部通过，基线已恢复；
-- `kb_mode=off` 在本机写后读回仍为 `fixed`，判定固件忽略该模式；
-  关闭键盘背光应使用亮度 0；
-- 继续测试可跳过 `off`：
-
-```bash
-STAGE3_SKIP_BRIGHTNESS=1 STAGE3_KB_MODES="cyclic fixed" \
-  sudo -E ./tools/stage3-write-test.sh
-```
-
-详细记录见 `docs/linux-stage3-results.md`。
+- `kb_mode=cyclic` 与 `kb_mode=fixed` 全部通过，基线已恢复；
+- profile `quiet` / `balanced` / `performance` 全部通过，基线已恢复；
+- `kb_mode=off` 写入后 WMI GET 仍为 `fixed`，但键盘已被确认为 RGB；
+  需要人工观察背光是否熄灭，才能区分“固件忽略 off”与“GET 不回读 off”；
+- 完整结果见 `docs/linux-stage3-results.md`。
 
 ## 阶段 4：MUX
 

@@ -23,9 +23,11 @@ platform profile、键盘 LED、`gpu_mode=hybrid` 和 `kb_mode=fixed` 均
 [`docs/linux-stage1-results.md`](docs/linux-stage1-results.md)。
 
 阶段 2 CPU-only 风扇测试已完成，GPU-only 测试在 Hybrid 0 下无法形成
-有效热负载，按计划延后到阶段 4 Discrete 完成后再补做。当前下一步是
-阶段 3 低风险、可逆写入；进度见
-[`docs/linux-stage2-progress.md`](docs/linux-stage2-progress.md) 和
+有效热负载，按计划延后到阶段 4 Discrete 完成后再补做。阶段 3 低风险
+写入已完成：键盘亮度、`kb_mode=cyclic/fixed`、三个 profile 均通过并
+恢复基线；`kb_mode=off` 的固件回读语义待人工复核。当前下一步是阶段 4
+MUX 前置检查；进度见 [`docs/linux-stage2-progress.md`](docs/linux-stage2-progress.md)、
+[`docs/linux-stage3-results.md`](docs/linux-stage3-results.md) 和
 [`docs/test-plan.md`](docs/test-plan.md)。
 
 ## 已知固件接口
