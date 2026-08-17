@@ -31,6 +31,17 @@ cleanup_trap() {
 }
 trap cleanup_trap INT TERM
 
+error_trap() {
+    local rc=$?
+    log_line "stage3 ERROR rc=$rc command=$BASH_COMMAND"
+    exit "$rc"
+}
+trap error_trap ERR
+
+skip_brightness=${STAGE3_SKIP_BRIGHTNESS:-0}
+skip_kb_mode=${STAGE3_SKIP_KB_MODE:-0}
+skip_profile=${STAGE3_SKIP_PROFILE:-0}
+
 read_value() {
     local path=$1
     if [[ -r "$path" ]]; then
@@ -68,7 +79,7 @@ if [[ ${EUID} -ne 0 ]]; then
     exit 4
 fi
 
-log_line "stage3 start wait_seconds=$wait_seconds repo=$repo"
+log_line "stage3 start wait_seconds=$wait_seconds repo=$repo skip_brightness=$skip_brightness skip_kb_mode=$skip_kb_mode skip_profile=$skip_profile"
 
 if ! "$repo/tools/jiaolongctl" status | tee -a "$log"; then
     echo "error: jiaolongctl status is not ready" >&2
@@ -93,44 +104,55 @@ write_and_verify() {
     local title=$1
     shift
     log_line "WRITE $title: $*"
-    "$@" | tee -a "$log"
+    "$@" 2>&1 | tee -a "$log"
     sleep "$wait_seconds"
 }
 
 # 1. Keyboard brightness 0-3, then restore baseline.
-for level in 0 1 2 3; do
-    before=$(read_value "$led/brightness")
-    write_and_verify "keyboard-brightness level=$level" \
-        "$repo/tools/jiaolongctl" keyboard-brightness "$level"
-    after=$(read_value "$led/brightness")
-    log_line "READBACK keyboard-brightness before=$before after=$after expected=$level"
-    [[ "$after" == "$level" ]] || { echo "error: keyboard brightness readback mismatch" >&2; exit 7; }
-done
-if [[ "$baseline_brightness" =~ ^[0-3]$ ]]; then
-    write_and_verify "restore keyboard-brightness" \
-        "$repo/tools/jiaolongctl" keyboard-brightness "$baseline_brightness"
+if [[ "$skip_brightness" != 1 ]]; then
+    for level in 0 1 2 3; do
+        before=$(read_value "$led/brightness")
+        write_and_verify "keyboard-brightness level=$level" \
+            "$repo/tools/jiaolongctl" keyboard-brightness "$level"
+        after=$(read_value "$led/brightness")
+        log_line "READBACK keyboard-brightness before=$before after=$after expected=$level"
+        [[ "$after" == "$level" ]] || { echo "error: keyboard brightness readback mismatch" >&2; exit 7; }
+    done
+    if [[ "$baseline_brightness" =~ ^[0-3]$ ]]; then
+        write_and_verify "restore keyboard-brightness" \
+            "$repo/tools/jiaolongctl" keyboard-brightness "$baseline_brightness"
+    fi
+else
+    log_line "skip keyboard-brightness block"
 fi
 
 # 2. Keyboard modes off/cyclic/fixed, then restore baseline.
-for mode in off cyclic fixed; do
-    before=$(read_value "$control/kb_mode")
-    write_and_verify "keyboard-mode mode=$mode" \
-        "$repo/tools/jiaolongctl" keyboard-mode "$mode"
-    after=$(read_value "$control/kb_mode")
-    log_line "READBACK keyboard-mode before=$before after=$after expected=$mode"
-    [[ "$after" == "$mode" ]] || { echo "error: keyboard mode readback mismatch" >&2; exit 7; }
-done
-case "$baseline_kb_mode" in
-    off|cyclic|fixed|custom)
-        write_and_verify "restore keyboard-mode" \
-            "$repo/tools/jiaolongctl" keyboard-mode "$baseline_kb_mode"
-        ;;
-    *)
-        log_line "baseline kb_mode=$baseline_kb_mode is outside reviewed set; leaving as-is"
-        ;;
-esac
+if [[ "$skip_kb_mode" != 1 ]]; then
+    for mode in off cyclic fixed; do
+        before=$(read_value "$control/kb_mode")
+        write_and_verify "keyboard-mode mode=$mode" \
+            "$repo/tools/jiaolongctl" keyboard-mode "$mode"
+        after=$(read_value "$control/kb_mode")
+        log_line "READBACK keyboard-mode before=$before after=$after expected=$mode"
+        [[ "$after" == "$mode" ]] || { echo "error: keyboard mode readback mismatch" >&2; exit 7; }
+    done
+    case "$baseline_kb_mode" in
+        off|cyclic|fixed|custom)
+            write_and_verify "restore keyboard-mode" \
+                "$repo/tools/jiaolongctl" keyboard-mode "$baseline_kb_mode"
+            ;;
+        *)
+            log_line "baseline kb_mode=$baseline_kb_mode is outside reviewed set; leaving as-is"
+            ;;
+    esac
+else
+    log_line "skip keyboard-mode block"
+fi
 
 # 3. Profiles quiet/balanced/performance, then restore baseline.
+if [[ "$skip_profile" == 1 ]]; then
+    log_line "skip profile block"
+fi
 profile_mode_for_value() {
     case "$1" in
         low-power) printf 'quiet\n' ;;
@@ -139,19 +161,21 @@ profile_mode_for_value() {
         *) printf '\n' ;;
     esac
 }
-for mode in quiet balanced performance; do
-    before=$(read_value "$profile/profile")
-    write_and_verify "profile mode=$mode" \
-        "$repo/tools/jiaolongctl" profile "$mode"
-    after=$(read_value "$profile/profile")
-    log_line "READBACK profile before=$before after=$after mode=$mode"
-done
-restore_profile_mode=$(profile_mode_for_value "$baseline_profile")
-if [[ -n "$restore_profile_mode" ]]; then
-    write_and_verify "restore profile" \
-        "$repo/tools/jiaolongctl" profile "$restore_profile_mode"
-else
-    log_line "baseline profile=$baseline_profile is outside reviewed set; not restored automatically"
+if [[ "$skip_profile" != 1 ]]; then
+    for mode in quiet balanced performance; do
+        before=$(read_value "$profile/profile")
+        write_and_verify "profile mode=$mode" \
+            "$repo/tools/jiaolongctl" profile "$mode"
+        after=$(read_value "$profile/profile")
+        log_line "READBACK profile before=$before after=$after mode=$mode"
+    done
+    restore_profile_mode=$(profile_mode_for_value "$baseline_profile")
+    if [[ -n "$restore_profile_mode" ]]; then
+        write_and_verify "restore profile" \
+            "$repo/tools/jiaolongctl" profile "$restore_profile_mode"
+    else
+        log_line "baseline profile=$baseline_profile is outside reviewed set; not restored automatically"
+    fi
 fi
 
 log_line "stage3 done log=$log"
