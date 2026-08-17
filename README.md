@@ -16,12 +16,17 @@ Linux 上游已经在 2026 年合入 [`bitland-mifs-wmi`](https://github.com/tor
 
 Windows 报告已确认本机为 `Jiaolong Series MRID6` / `MRID6-23` / BIOS `MRID6_23_P_V35`，活动实例为 `ACPI\\PNP0C14\\MIFS_0`；精确白名单下的 14 个 GET 全部成功。用户已经通过官方控制中心完成 Discrete 1 → Hybrid 0 并重启复查。
 
-Arch 7.1.6 真机阶段 1 只读采集已完成：DMI 白名单、控制 GUID
-`B60BFB48-...-4`、hwmon、platform profile、键盘 LED、`gpu_mode=hybrid`
-和 `kb_mode=fixed` 均正常。但事件 GUID `46C93E13-...-0` 当前被
-`redmi-wmi` 抢先绑定，`bitland-mifs-wmi` 的事件设备未建立；在解决该
-上游 GUID 冲突前，工具拒绝固件写入。详见
+Arch 7.1.6 真机阶段 1 已通过：DMI 白名单、控制 GUID、hwmon、
+platform profile、键盘 LED、`gpu_mode=hybrid` 和 `kb_mode=fixed` 均
+只读正常。事件 GUID 与 `redmi-wmi` 存在上游 alias 冲突，已通过 sysfs
+重绑完成验证，重启持久化方案记录在
 [`docs/linux-stage1-results.md`](docs/linux-stage1-results.md)。
+
+阶段 2 CPU-only 风扇测试已完成，GPU-only 测试在 Hybrid 0 下无法形成
+有效热负载，按计划延后到阶段 4 Discrete 完成后再补做。当前下一步是
+阶段 3 低风险、可逆写入；进度见
+[`docs/linux-stage2-progress.md`](docs/linux-stage2-progress.md) 和
+[`docs/test-plan.md`](docs/test-plan.md)。
 
 ## 已知固件接口
 

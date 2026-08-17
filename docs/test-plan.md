@@ -33,7 +33,7 @@
 - DMI 精确白名单命中；
 - 不读取或写入 `fan_boost`。
 
-## 阶段 2：风扇字段只读识别
+## 阶段 2：风扇字段只读识别（CPU-only 完成；GPU-only 延后到阶段 4）
 
 先记录空闲状态，再分别制造 CPU-only 与 GPU-only 负载，每 1–2 秒记录三个 fan input、CPU 温度和 `nvidia-smi` 温度。全过程由 EC 自动控扇，不写任何风扇接口。
 
@@ -47,7 +47,17 @@
 
 目标：确定功能 13 的前两个 RPM 字段究竟对应 CPU、GPU，还是主循环/辅助循环；同时核对 WMI 事件 RPM 字节序。确认前不向上游提交标签修复。
 
-## 阶段 3：低风险、可逆写入
+当前结果：
+
+- CPU-only 已完成：fan1/fan2 同步响应，相关系数约 0.976，无法仅凭
+  CPU 负载区分通道；
+- GPU-only 在 Hybrid 0 下无法形成有效测试：vkcube + NVENC 最大仅
+  32.17 W，且 CPU 温度同时升高；
+- **GPU-only 不阻塞阶段 3，延后到阶段 4 切换 Discrete 并重启后补做。**
+
+详细数据与判断见 `docs/linux-stage2-progress.md`。
+
+## 阶段 3：低风险、可逆写入（当前下一步）
 
 按顺序逐项测试，每次写前后读取状态并等待至少一分钟：
 
@@ -56,6 +66,10 @@
 3. profile：`quiet`、`balanced`、`performance`。
 
 `jiaolongctl` 把 `performance` 映射到 Linux 的 `balanced-performance`（固件值 1），不会选择 Linux `performance` 对应的未验证固件值 3。
+
+实际写入需要 root；每次写入前先运行 `jiaolongctl status`，写入后立即
+读回对应 sysfs 值，并等待至少一分钟确认无异常。`--dry-run` 路径已在
+真机全部校验通过，但 dry-run 不替代实际写入复核。
 
 ## 阶段 4：MUX
 
@@ -66,6 +80,10 @@ sudo ./tools/jiaolongctl gpu-mode discrete --confirm-reboot-required
 ```
 
 工具只写选择，不会自动重启。手动重启后验证内屏、Wayland、外接显示器和 `nvidia-smi`，再测试切回 Hybrid。
+
+Discrete 验证项中补充完成阶段 2 遗留的 GPU-only 风扇识别：用
+`hashcat opencl-nvidia` 或 `tools/stage2-gpu-load.sh` 产生真实 GPU
+热负载，同时运行 `tools/fan-sample.py`，确认 fan1/fan2 是否仍同步。
 
 ## 阶段 5：挂起、恢复与长期使用
 

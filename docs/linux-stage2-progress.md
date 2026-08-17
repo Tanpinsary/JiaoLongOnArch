@@ -58,36 +58,22 @@ CPU 热源。需要 GPU-only 对照才能继续判断。
 不能代表真实 TGP 负载；3 路 NVENC 也只贡献了很少功耗。必须改用
 计算密集负载，并同时记录 SM/MEM 时钟与 enforced power limit。
 
-## 下一步
+## 结论与后续
 
-1. 安装 OpenCL 计算压力工具并确认设备：
+Hybrid 0 下无法完成有效的 GPU-only 风扇识别：vkcube + NVENC 最大只有
+32.17 W，且 CPU 温度同步升高。该测试**延后到阶段 4 Discrete 完成并
+重启后补做**，不再阻塞阶段 3。
 
-   ```bash
-   sudo pacman -S --needed hashcat opencl-nvidia
-   hashcat -I
-   nvidia-smi -q -d POWER,CLOCK
-   ```
+阶段 4 补做时使用：
 
-   把 `hashcat -I` 的 NVIDIA 设备编号和 `Enforced Power Limit`、
-   `SM Clock` 发回。若 enforced limit 本身就低于 60 W，则是 BIOS/
-   Hybrid 模式的 TGP 策略问题，而不是负载不够。
+```bash
+sudo pacman -S --needed hashcat opencl-nvidia
+hashcat -I
+nvidia-smi -q -d POWER,CLOCK
 
-2. 用 hashcat 跑 NVIDIA-only 计算负载，同时用仓库脚本采样风扇。
-   设备编号确认后，在桌面终端执行：
+cd /home/tanp/Projects/jiaolongonarch
+./tools/stage2-gpu-load.sh 240 120
+```
 
-   ```bash
-   cd /home/tanp/Projects/jiaolongonarch
-   ./tools/stage2-gpu-load.sh 240 120
-   ```
-
-   或手动指定 hashcat 设备：
-
-   ```bash
-   timeout 240 hashcat -b --benchmark-all -d <NVIDIA_DEVICE_ID>
-   ```
-
-3. 继续对比 CPU-only、GPU-only、空闲三段曲线的 fan1/fan2 响应。
-
-2. 对比 CPU-only、GPU-only、空闲三段曲线的 fan1/fan2 响应。
-3. 若 GPU-only 仍让两者同步上升，则向上游报告：功能 13 前两个字段
-   不能按当前 CPU/GPU 标签区分，至少对 MRID6-23 V35 不成立。
+若 Discrete 下仍无法让 GPU 功耗明显上升，则记录为 MRID6-23 V35 的
+固件/BIOS 限制，并继续以实测数据向上游报告功能 13 标签问题。
