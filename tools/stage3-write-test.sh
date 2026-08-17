@@ -41,6 +41,10 @@ trap error_trap ERR
 skip_brightness=${STAGE3_SKIP_BRIGHTNESS:-0}
 skip_kb_mode=${STAGE3_SKIP_KB_MODE:-0}
 skip_profile=${STAGE3_SKIP_PROFILE:-0}
+kb_modes=(off cyclic fixed)
+if [[ -n ${STAGE3_KB_MODES:-} ]]; then
+    read -r -a kb_modes <<<"$STAGE3_KB_MODES"
+fi
 
 read_value() {
     local path=$1
@@ -79,7 +83,7 @@ if [[ ${EUID} -ne 0 ]]; then
     exit 4
 fi
 
-log_line "stage3 start wait_seconds=$wait_seconds repo=$repo skip_brightness=$skip_brightness skip_kb_mode=$skip_kb_mode skip_profile=$skip_profile"
+log_line "stage3 start wait_seconds=$wait_seconds repo=$repo skip_brightness=$skip_brightness skip_kb_mode=$skip_kb_mode skip_profile=$skip_profile kb_modes=${kb_modes[*]}"
 
 if ! "$repo/tools/jiaolongctl" status | tee -a "$log"; then
     echo "error: jiaolongctl status is not ready" >&2
@@ -128,7 +132,7 @@ fi
 
 # 2. Keyboard modes off/cyclic/fixed, then restore baseline.
 if [[ "$skip_kb_mode" != 1 ]]; then
-    for mode in off cyclic fixed; do
+    for mode in "${kb_modes[@]}"; do
         before=$(read_value "$control/kb_mode")
         write_and_verify "keyboard-mode mode=$mode" \
             "$repo/tools/jiaolongctl" keyboard-mode "$mode"

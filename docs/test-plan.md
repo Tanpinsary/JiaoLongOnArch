@@ -81,6 +81,20 @@ sudo ./tools/stage3-write-test.sh
 缩短等待，但正式结果仍按默认值记录。脚本只写阶段 3 接口，不包含
 `fan_boost`、`gpu_mode`、UMA、EC RAM 或任意 WMI 方法。
 
+当前进度与发现：
+
+- 键盘亮度 0–3 全部通过，基线已恢复；
+- `kb_mode=off` 在本机写后读回仍为 `fixed`，判定固件忽略该模式；
+  关闭键盘背光应使用亮度 0；
+- 继续测试可跳过 `off`：
+
+```bash
+STAGE3_SKIP_BRIGHTNESS=1 STAGE3_KB_MODES="cyclic fixed" \
+  sudo -E ./tools/stage3-write-test.sh
+```
+
+详细记录见 `docs/linux-stage3-results.md`。
+
 ## 阶段 4：MUX
 
 仅当 BIOS 中存在可恢复的显卡模式入口、Windows 仍可启动且 NVIDIA 驱动已验证时测试：
