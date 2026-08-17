@@ -83,7 +83,7 @@ Linux 7.1 使用新的 WMI buffer marshalling API。旧版 Linux 7.0 和 6.18 LT
 
 这些范围来自 UI 安全限制，不等于已经确认的物理 RPM。当前 Linux 上游 `fan_boost` 对功能 20 发送两个字节 `{0, state}`，与这份蛟龙官方程序不一致；在真机验证前不得使用该 sysfs 写接口。
 
-## 风扇字段待确认
+## 风扇字段标签：真机验证结论
 
 Linux 上游把功能 13 的返回数据解释为：
 
@@ -93,9 +93,20 @@ Linux 上游把功能 13 的返回数据解释为：
 
 Windows 真机样本返回 `C5 13 B9 13 00 00 00 00`，little-endian 解释为 5061、5049、0 RPM；这确认了方法返回字段的字节序，但没有确认通道标签。
 
-官方 0.3.15 只把第一个字段显示为笼统的“FanSpeed”，没有给两个字段贴 CPU/GPU 标签；公开的 `JiaoLongControl` 则把前两个字段显示为 GPU、CPU，顺序与上游相反。首轮真机测试必须分别制造 CPU-only 和 GPU-only 负载，对比字段变化后再确定标签。确认前只能称为 fan channel 0/1，不能据此控制风扇。
+MRID6-23 V35 已完成 CPU-only 与 Discrete + hashcat 80 W GPU-only 测试：
 
-官方 WMI 事件代码还把事件字节 2/3 按大端 RPM 组合，而当前上游驱动按相反顺序组合。该差异同样需要通过真机事件数据验证。
+- CPU-only：fan1/fan2 相关系数 0.976；
+- 80 W GPU-only：fan1/fan2 相关系数 0.9971，差值 -127 到 +128 RPM；
+- 两个字段在所有场景下都同步上升到约 5,000 RPM；
+- `fan3` 始终为 0 RPM。
+
+因此在本机型上不能把前两个字段区分为 CPU/GPU 风扇；它们只能称为
+fan channel 0/1。上游 `fan1_label=CPU`、`fan2_label=GPU` 缺少本机型
+证据，属于待修复项。详细数据见 `docs/linux-stage2-progress.md`。
+
+官方 0.3.15 只把第一个字段显示为笼统的“FanSpeed”，没有给两个字段贴 CPU/GPU 标签；公开的 `JiaoLongControl` 则把前两个字段显示为 GPU、CPU，顺序与上游相反。
+
+官方 WMI 事件代码还把事件字节 2/3 按大端 RPM 组合，而当前上游驱动按相反顺序组合。该差异仍需要通过真机事件数据验证。
 
 ## Windows 实现中的直接 EC 路径
 

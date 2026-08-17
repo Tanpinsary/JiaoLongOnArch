@@ -28,7 +28,7 @@
 ## 当前缺口
 
 1. 上游事件 GUID `46C93E13-...` 与 `redmi-wmi` 重复声明。本机实测该事件设备被 `redmi-wmi` 绑定，导致 `bitland-mifs-wmi` 无法创建热键 input 设备，也无法收到键盘灯、profile 和风扇事件通知；两个驱动的事件 ID/keymap 语义不同，需要通过 DMI 白名单或共享事件层修复。详见 `docs/linux-stage1-results.md`。
-2. 上游直接把功能 13 的前两个风扇字段标记为 CPU、GPU；公开 Windows 实现的显示顺序相反，必须在 7745HX 真机上验证。
+2. 上游直接把功能 13 的前两个风扇字段标记为 CPU、GPU。本机 CPU-only 与 80 W GPU-only 测试均显示两通道同步（相关系数 0.976/0.997），无法按 CPU/GPU 区分；应改为不带 CPU/GPU 语义的通道名或机型 quirk。详见 `docs/linux-stage2-progress.md`。
 3. 上游只暴露键盘亮度和模式，没有暴露固定 RGB 颜色。
 4. 主线目前只有 `fan_boost`，没有任意风扇曲线；更重要的是，主线对功能 20 写 `{0, state}`，蛟龙官方 0.3.15 写入单字节 `{state}`，所以该机型在真机验证前禁止使用 `fan_boost`。
 5. 官方 0.3.15 用功能 21 的单字节目标实现手动风扇，并按模式限制在 22–58；2026-05 的 thermal cooling device 补丁不在当前主线中，不能视为已支持功能。
