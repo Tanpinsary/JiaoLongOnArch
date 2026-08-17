@@ -71,6 +71,16 @@
 读回对应 sysfs 值，并等待至少一分钟确认无异常。`--dry-run` 路径已在
 真机全部校验通过，但 dry-run 不替代实际写入复核。
 
+已提供阶段 3 自动测试脚本，按顺序测试并在最后恢复基线：
+
+```bash
+sudo ./tools/stage3-write-test.sh
+```
+
+默认每项等待 60 秒；可用 `WAIT_SECONDS=30 sudo -E ./tools/stage3-write-test.sh`
+缩短等待，但正式结果仍按默认值记录。脚本只写阶段 3 接口，不包含
+`fan_boost`、`gpu_mode`、UMA、EC RAM 或任意 WMI 方法。
+
 ## 阶段 4：MUX
 
 仅当 BIOS 中存在可恢复的显卡模式入口、Windows 仍可启动且 NVIDIA 驱动已验证时测试：
