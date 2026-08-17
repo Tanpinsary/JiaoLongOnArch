@@ -42,7 +42,7 @@ if ! command -v vkcube >/dev/null 2>&1 && ! command -v ffmpeg >/dev/null 2>&1; t
     exit 2
 fi
 
-"$repo/tools/fan-sample.py" --no-gpu --duration "$((duration + cooldown))" --interval 1 >"$fan_csv" &
+python3 -u "$repo/tools/fan-sample.py" --no-gpu --duration "$((duration + cooldown))" --interval 1 >"$fan_csv" &
 sampler_pid=$!
 
 nvidia-smi \

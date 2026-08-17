@@ -58,22 +58,28 @@ CPU 热源。需要 GPU-only 对照才能继续判断。
 不能代表真实 TGP 负载；3 路 NVENC 也只贡献了很少功耗。必须改用
 计算密集负载，并同时记录 SM/MEM 时钟与 enforced power limit。
 
+## Discrete 下 vkcube + NVENC 同步运行（2026-08-18 00:04）
+
+阶段 4 已通过 BIOS 进入 Discrete。相同负载在独显直连下复测：
+
+- `enforced.power.limit` 为 **80 W**；
+- 实际 `power.draw` 高 utilization 段均值 36.7 W，最大 **43.75 W**；
+- SM 时钟最高 2,565 MHz，显存最高 8,001 MHz；
+- GPU 温度最大 67°C；
+- CPU `temp1_input` 仍在负载初期达到 92°C；
+- 负载段 `fan1/fan2` 相关系数 0.995，差值 -136 到 +139 RPM，
+  两个风扇仍然完全同步。
+
+注意：80 W 是 enforced power limit，不是实际功耗。vkcube + NVENC
+在 Discrete 下只把实际功耗从 32 W 级提高到约 44 W，仍未压满 TGP。
+还需要 hashcat 这类计算密集负载。
+
 ## 结论与后续
 
-Hybrid 0 下无法完成有效的 GPU-only 风扇识别：vkcube + NVENC 最大只有
-32.17 W，且 CPU 温度同步升高。该测试**延后到阶段 4 Discrete 完成并
-重启后补做**，不再阻塞阶段 3。
-
-阶段 4 补做时使用：
-
-```bash
-sudo pacman -S --needed hashcat opencl-nvidia
-hashcat -I
-nvidia-smi -q -d POWER,CLOCK
-
-cd /home/tanp/Projects/jiaolongonarch
-./tools/stage2-gpu-load.sh 240 120
-```
-
-若 Discrete 下仍无法让 GPU 功耗明显上升，则记录为 MRID6-23 V35 的
-固件/BIOS 限制，并继续以实测数据向上游报告功能 13 标签问题。
+- CPU-only 已完成：fan1/fan2 同步，相关系数约 0.976；
+- Discrete 下 vkcube + NVENC 已完成：fan1/fan2 仍同步，相关系数
+  0.995，但 GPU 功耗只有 43.75 W，不能视为完整 GPU-only 验证；
+- 下一轮必须使用 hashcat/opencl-nvidia 在 Discrete 下产生真实计算
+  负载，目标实际 `power.draw` 接近 80 W；
+- 若 hashcat 下 GPU 热负载足够而 fan1/fan2 仍同步，则可确认功能 13
+  前两个字段在本机不能按 CPU/GPU 独立标签区分。
