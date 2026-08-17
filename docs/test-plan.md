@@ -110,9 +110,8 @@ sudo ./tools/jiaolongctl gpu-mode discrete --confirm-reboot-required
 
 工具只写选择，不会自动重启。手动重启后验证内屏、Wayland、外接显示器和 `nvidia-smi`，再测试切回 Hybrid。
 
-Discrete 验证项中补充完成阶段 2 遗留的 GPU-only 风扇识别：用
-`hashcat opencl-nvidia` 或 `tools/stage2-gpu-load.sh` 产生真实 GPU
-热负载，同时运行 `tools/fan-sample.py`，确认 fan1/fan2 是否仍同步。
+Discrete 验证项中的 GPU-only 风扇识别已完成：hashcat 将实际功耗
+压到约 80 W，fan1/fan2 仍同步，阶段 2 结论已归档。
 
 ## 阶段 5：挂起、恢复与长期使用
 
