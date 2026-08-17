@@ -69,7 +69,9 @@ error: write did not read back as requested: expected='off', observed='fixed'
 ## 阶段 3 结论
 
 - 键盘亮度、cyclic/fixed、三个官方 profile 均通过；
-- `off` 待人工观察背光后定性；
+- `kb_mode=off` 的 WMI GET 不回读问题保留为上游缺口；
+- 本机关闭键盘背光的实际操作路径确定为 `keyboard-brightness 0`；
+- 用户决定在进入阶段 4 前将键盘亮度设置为 0；
 - 所有测试结束后系统已恢复到亮度 3、`kb_mode=fixed`、
   `profile=balanced-performance`；
 - 完整日志：

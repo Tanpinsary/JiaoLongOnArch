@@ -90,9 +90,19 @@ sudo ./tools/stage3-write-test.sh
   需要人工观察背光是否熄灭，才能区分“固件忽略 off”与“GET 不回读 off”；
 - 完整结果见 `docs/linux-stage3-results.md`。
 
-## 阶段 4：MUX
+## 阶段 4：MUX（当前下一步）
 
-仅当 BIOS 中存在可恢复的显卡模式入口、Windows 仍可启动且 NVIDIA 驱动已验证时测试：
+前置检查（2026-08-17 已通过的只读项）：
+
+- `jiaolongctl status=0`，DMI 白名单命中；
+- `gpu_mode=hybrid`，事件 GUID 绑定 `bitland-mifs-wmi`；
+- 圆口 `ADP1 type=Mains online=1`；
+- NVIDIA PCI 设备绑定 `nvidia` 驱动；
+- 存在 `Bitland MIFS WMI hotkeys` input 设备。
+
+仍需人工确认：BIOS 有显卡模式恢复入口、Windows 仍可启动。
+
+仅当上述条件全部满足时测试：
 
 ```bash
 sudo ./tools/jiaolongctl gpu-mode discrete --confirm-reboot-required
