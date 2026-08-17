@@ -12,6 +12,7 @@ duration=${1:-240}
 cooldown=${2:-120}
 stamp=$(date +%Y%m%d-%H%M%S)
 out_dir="/home/tanp/Projects/JiaoLongOnArch-stage2-gpu-$stamp"
+hashcat_device=${HASHCAT_DEVICE:-}
 mkdir -p "$out_dir"
 
 fan_csv="$out_dir/fans.csv"
@@ -50,7 +51,15 @@ nvidia-smi \
     --format=csv,nounits -l 1 -f "$gpu_csv" &
 logger_pid=$!
 
-if command -v ffmpeg >/dev/null 2>&1; then
+if [[ -n "$hashcat_device" ]]; then
+    if ! command -v hashcat >/dev/null 2>&1; then
+        echo "error: HASHCAT_DEVICE is set but hashcat is not installed" >&2
+        exit 2
+    fi
+    timeout "$duration" hashcat -b --benchmark-all -d "$hashcat_device" \
+        >"$out_dir/hashcat.log" 2>&1 &
+    load_pids+=("$!")
+elif command -v ffmpeg >/dev/null 2>&1; then
     for stream in 1 2 3; do
         ffmpeg -hide_banner -loglevel error \
             -f lavfi -i testsrc2=size=2560x1440:rate=60 \
@@ -60,7 +69,7 @@ if command -v ffmpeg >/dev/null 2>&1; then
     done
 fi
 
-if command -v vkcube >/dev/null 2>&1; then
+if [[ -z "$hashcat_device" ]] && command -v vkcube >/dev/null 2>&1; then
     for cube in 1 2; do
         __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia \
             vkcube --wsi wayland --width 1920 --height 1080 --present_mode 0 \
@@ -69,7 +78,7 @@ if command -v vkcube >/dev/null 2>&1; then
     done
 fi
 
-echo "stage2-gpu-load: duration=${duration}s cooldown=${cooldown}s"
+echo "stage2-gpu-load: duration=${duration}s cooldown=${cooldown}s hashcat_device=${hashcat_device:-none}"
 echo "stage2-gpu-load: fan_csv=$fan_csv"
 echo "stage2-gpu-load: gpu_csv=$gpu_csv"
 echo "stage2-gpu-load: loaders=${load_pids[*]}"
