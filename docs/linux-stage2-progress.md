@@ -45,17 +45,23 @@ CPU 热源。需要 GPU-only 对照才能继续判断。
 
 ## 下一步
 
-1. 在用户桌面终端产生 NVIDIA-only 负载，例如：
+1. 在用户桌面终端产生 NVIDIA-only 负载。该终端有 `/dev/nvidia*`，
+   而当前研究 shell 没有，因此由用户启动负载，本仓库只读采样：
 
    ```bash
-   __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia vkcube
-   # 或 glxgears / 稳定的 CUDA 负载，持续 3–5 分钟
+   cd /home/tanp/Projects/jiaolongonarch
+   nvidia-smi --query-gpu=temperature.gpu,utilization.gpu,power.draw \
+     --format=csv -l 1 -f /home/tanp/Projects/gpu-load-gpu.csv &
+   __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia vkcube &
+   ./tools/fan-sample.py --no-gpu --duration 300 --interval 1 \
+     > /home/tanp/Projects/gpu-load-fans.csv
+   kill %2 %1
    ```
 
-   同时由本项目采样：
+   运行期间另开一个终端确认负载确实落在 NVIDIA GPU：
 
    ```bash
-   ./tools/fan-sample.py --duration 300 --interval 1 > gpu-only.csv
+   nvidia-smi --query-gpu=utilization.gpu,temperature.gpu,power.draw --format=csv
    ```
 
 2. 对比 CPU-only、GPU-only、空闲三段曲线的 fan1/fan2 响应。
