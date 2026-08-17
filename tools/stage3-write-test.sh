@@ -24,6 +24,13 @@ log_line() {
     printf '%s %s\n' "$(date --iso-8601=seconds)" "$*" | tee -a "$log"
 }
 
+cleanup_trap() {
+    local rc=$?
+    log_line "stage3 interrupted rc=$rc"
+    exit "$rc"
+}
+trap cleanup_trap INT TERM
+
 read_value() {
     local path=$1
     if [[ -r "$path" ]]; then
