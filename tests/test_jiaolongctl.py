@@ -13,6 +13,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 TOOL = PROJECT_ROOT / "tools" / "jiaolongctl"
 CONTROL_GUID = "B60BFB48-3E5B-49E4-A0E9-8CFFE1B3434B"
 EVENT_GUID = "46C93E13-EE9B-4262-8488-563BCA757FEF"
+CONTROL_INSTANCE = f"{CONTROL_GUID}-4"
+EVENT_INSTANCE = f"{EVENT_GUID}-0"
 
 DMI = {
     "sys_vendor": "MECHREVO",
@@ -49,13 +51,13 @@ class JiaolongCtlTest(unittest.TestCase):
 
         driver = self.root / "sys/bus/wmi/drivers/bitland-mifs-wmi"
         driver.mkdir(parents=True)
-        for guid in (CONTROL_GUID, EVENT_GUID):
+        for guid in (CONTROL_INSTANCE, EVENT_INSTANCE):
             device = self.root / f"sys/bus/wmi/devices/{guid}"
             device.mkdir(parents=True)
             (device / "driver").symlink_to(driver)
 
-        self._write(f"sys/bus/wmi/devices/{CONTROL_GUID}/gpu_mode", "hybrid")
-        self._write(f"sys/bus/wmi/devices/{CONTROL_GUID}/kb_mode", "fixed")
+        self._write(f"sys/bus/wmi/devices/{CONTROL_INSTANCE}/gpu_mode", "hybrid")
+        self._write(f"sys/bus/wmi/devices/{CONTROL_INSTANCE}/kb_mode", "fixed")
 
         profile = "sys/class/platform-profile/platform-profile-0"
         self._write(f"{profile}/name", "bitland-mifs-wmi")
@@ -95,9 +97,43 @@ class JiaolongCtlTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         status = json.loads(result.stdout)
         self.assertTrue(status["write_allowlisted"])
+        self.assertEqual(status["wmi"]["control_instance"], CONTROL_INSTANCE)
         self.assertEqual(status["wmi"]["control_driver"], "bitland-mifs-wmi")
+        self.assertEqual(status["wmi"]["event_instance"], EVENT_INSTANCE)
+        self.assertEqual(status["wmi"]["event_driver"], "bitland-mifs-wmi")
+        self.assertFalse(status["wmi"]["event_driver_conflict"])
         self.assertEqual(status["wmi"]["values"]["gpu_mode"], "hybrid")
         self.assertIn("fan_boost", status["disabled_interfaces"])
+
+    def _bind_event_to_redmi(self) -> None:
+        event = self.root / f"sys/bus/wmi/devices/{EVENT_INSTANCE}"
+        (event / "driver").unlink()
+        redmi = self.root / "sys/bus/wmi/drivers/redmi-wmi"
+        redmi.mkdir(parents=True)
+        (event / "driver").symlink_to(redmi)
+
+    def test_status_reports_event_guid_driver_collision(self) -> None:
+        self._bind_event_to_redmi()
+
+        result = self.run_tool("--json", "status")
+        self.assertEqual(result.returncode, 5, result.stderr)
+        status = json.loads(result.stdout)
+        self.assertEqual(status["wmi"]["control_driver"], "bitland-mifs-wmi")
+        self.assertEqual(status["wmi"]["event_driver"], "redmi-wmi")
+        self.assertTrue(status["wmi"]["event_driver_conflict"])
+
+        text = self.run_tool("status")
+        self.assertIn("WARNING: event GUID is bound to 'redmi-wmi'", text.stdout)
+
+    def test_event_driver_collision_blocks_writes(self) -> None:
+        self._bind_event_to_redmi()
+        result = self.run_tool("--dry-run", "profile", "balanced")
+        self.assertEqual(result.returncode, 4)
+        self.assertIn("event device is not bound", result.stderr)
+        value = (
+            self.root / "sys/class/platform-profile/platform-profile-0/profile"
+        ).read_text(encoding="utf-8")
+        self.assertEqual(value, "balanced\n")
 
     def test_profile_maps_official_performance_without_full_speed(self) -> None:
         result = self.run_tool("profile", "performance")
@@ -114,9 +150,9 @@ class JiaolongCtlTest(unittest.TestCase):
 
         allowed = self.run_tool("gpu-mode", "discrete", "--confirm-reboot-required")
         self.assertEqual(allowed.returncode, 0, allowed.stderr)
-        value = (self.root / f"sys/bus/wmi/devices/{CONTROL_GUID}/gpu_mode").read_text(
-            encoding="utf-8"
-        )
+        value = (
+            self.root / f"sys/bus/wmi/devices/{CONTROL_INSTANCE}/gpu_mode"
+        ).read_text(encoding="utf-8")
         self.assertEqual(value, "discrete\n")
         self.assertIn("No reboot was started", allowed.stdout)
 
@@ -130,9 +166,9 @@ class JiaolongCtlTest(unittest.TestCase):
 
         mode = self.run_tool("keyboard-mode", "cyclic")
         self.assertEqual(mode.returncode, 0, mode.stderr)
-        value = (self.root / f"sys/bus/wmi/devices/{CONTROL_GUID}/kb_mode").read_text(
-            encoding="utf-8"
-        )
+        value = (
+            self.root / f"sys/bus/wmi/devices/{CONTROL_INSTANCE}/kb_mode"
+        ).read_text(encoding="utf-8")
         self.assertEqual(value, "cyclic\n")
 
     def test_dmi_mismatch_blocks_every_write(self) -> None:

@@ -38,16 +38,28 @@ done
 {
     printf 'expected_control_guid=B60BFB48-3E5B-49E4-A0E9-8CFFE1B3434B\n'
     printf 'expected_event_guid=46C93E13-EE9B-4262-8488-563BCA757FEF\n'
+    printf 'expected_driver=bitland-mifs-wmi\n'
     for guid in B60BFB48-3E5B-49E4-A0E9-8CFFE1B3434B 46C93E13-EE9B-4262-8488-563BCA757FEF; do
-        path="/sys/bus/wmi/devices/$guid"
-        if [[ -e "$path" ]]; then
-            printf '%s=present\n' "$guid"
-            if [[ -L "$path/driver" ]]; then
-                printf '%s_driver=%s\n' "$guid" "$(basename "$(readlink -f "$path/driver")")"
-            fi
-        else
+        devices=()
+        for candidate in "/sys/bus/wmi/devices/$guid" "/sys/bus/wmi/devices/$guid-"*; do
+            [[ -e "$candidate" ]] || continue
+            devices+=("$candidate")
+        done
+
+        if (( ${#devices[@]} == 0 )); then
             printf '%s=absent\n' "$guid"
+            continue
         fi
+
+        for device in "${devices[@]}"; do
+            instance=$(basename "$device")
+            printf '%s=present instance=%s\n' "$guid" "$instance"
+            if [[ -L "$device/driver" ]]; then
+                printf '%s_driver=%s\n' "$instance" "$(basename "$(readlink -f "$device/driver")")"
+            else
+                printf '%s_driver=unbound\n' "$instance"
+            fi
+        done
     done
 } >"$out_dir/mifs-status.txt"
 

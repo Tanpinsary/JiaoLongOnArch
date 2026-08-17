@@ -55,14 +55,40 @@ def read_text(path: Path) -> str | None:
         return None
 
 
-def find_casefold(parent: Path, expected_name: str) -> Path | None:
+def find_wmi_devices(expected_guid: str) -> list[Path]:
+    """Return WMI sysfs devices for a GUID, including the -INSTANCE suffix.
+
+    The WMI subsystem exposes devices as GUID-INSTANCE (for example
+    B60BFB48-3E5B-49E4-A0E9-8CFFE1B3434B-4), not as the bare GUID. Exact-name
+    lookup therefore misses every real device on kernels with WMI bus naming.
+    """
+    base = rooted("/sys/bus/wmi/devices")
+    expected = expected_guid.upper()
+    prefix = f"{expected}-"
+    devices: list[Path] = []
     try:
-        for child in parent.iterdir():
-            if child.name.upper() == expected_name.upper():
-                return child
+        for child in base.iterdir():
+            name = child.name.upper()
+            if name == expected or (
+                name.startswith(prefix) and name[len(prefix) :].isdigit()
+            ):
+                devices.append(child)
     except (FileNotFoundError, PermissionError, OSError):
         pass
-    return None
+    return sorted(devices)
+
+
+def prefer_bound_device(devices: list[Path], expected_driver: str) -> Path | None:
+    """Prefer a device already bound to the expected driver.
+
+    This keeps status output useful when one GUID has both a bound instance
+    and an unbound duplicate, while still returning a device when the binding
+    is wrong so callers can report the actual conflicting driver.
+    """
+    for device in devices:
+        if driver_name(device) == expected_driver:
+            return device
+    return devices[0] if devices else None
 
 
 def driver_name(device: Path | None) -> str | None:
@@ -189,9 +215,13 @@ def collect_leds() -> list[dict[str, str]]:
 
 
 def collect_status() -> dict[str, Any]:
-    wmi_devices = rooted("/sys/bus/wmi/devices")
-    control = find_casefold(wmi_devices, CONTROL_GUID)
-    event = find_casefold(wmi_devices, EVENT_GUID)
+    control_devices = find_wmi_devices(CONTROL_GUID)
+    event_devices = find_wmi_devices(EVENT_GUID)
+    control = prefer_bound_device(control_devices, DRIVER_NAME)
+    event = prefer_bound_device(event_devices, DRIVER_NAME)
+    control_driver = driver_name(control)
+    event_driver = driver_name(event)
+
     firmware_values: dict[str, str] = {}
     if control is not None:
         for name in ("gpu_mode", "kb_mode"):
@@ -209,10 +239,19 @@ def collect_status() -> dict[str, Any]:
         "wmi": {
             "control_guid": CONTROL_GUID,
             "control_present": control is not None,
-            "control_driver": driver_name(control),
+            "control_instance": control.name if control is not None else None,
+            "control_driver": control_driver,
+            "control_instances": [device.name for device in control_devices],
             "event_guid": EVENT_GUID,
             "event_present": event is not None,
-            "event_driver": driver_name(event),
+            "event_instance": event.name if event is not None else None,
+            "event_driver": event_driver,
+            "event_instances": [device.name for device in event_devices],
+            "event_driver_conflict": bool(
+                event is not None
+                and event_driver is not None
+                and event_driver != DRIVER_NAME
+            ),
             "values": firmware_values,
         },
         "hwmon": collect_hwmon(),
@@ -240,12 +279,20 @@ def print_text(status: dict[str, Any]) -> None:
     print("WMI:")
     print(
         f"  control: {'present' if wmi['control_present'] else 'absent'}"
+        f" ({wmi.get('control_instance') or 'no instance'})"
         f"; driver={wmi['control_driver'] or 'unbound'}"
     )
     print(
         f"  event:   {'present' if wmi['event_present'] else 'absent'}"
+        f" ({wmi.get('event_instance') or 'no instance'})"
         f"; driver={wmi['event_driver'] or 'unbound'}"
     )
+    if wmi.get("event_driver_conflict"):
+        print(
+            f"  WARNING: event GUID is bound to {wmi['event_driver']!r}, "
+            f"not {DRIVER_NAME!r}; hotkey/fan-event notifications are not "
+            "being handled by the bitland driver."
+        )
     for key, value in wmi["values"].items():
         print(f"  {key}: {value}")
     print("Kernel config:")
@@ -290,10 +337,18 @@ def require_write_ready() -> tuple[dict[str, Any], Path]:
             f"WMI control device is not bound to {DRIVER_NAME}; current="
             f"{wmi['control_driver'] or 'unbound'}"
         )
+    if not wmi["event_present"]:
+        raise JiaolongError(f"required WMI event GUID {EVENT_GUID} is absent")
+    if wmi["event_driver"] != DRIVER_NAME:
+        raise JiaolongError(
+            f"WMI event device is not bound to {DRIVER_NAME}; current="
+            f"{wmi['event_driver'] or 'unbound'}. Resolve the shared-GUID "
+            "driver collision before issuing firmware writes."
+        )
     if SYSFS_ROOT == Path("/") and os.geteuid() != 0:
         raise JiaolongError("firmware control requires root; status does not")
 
-    control = find_casefold(rooted("/sys/bus/wmi/devices"), CONTROL_GUID)
+    control = prefer_bound_device(find_wmi_devices(CONTROL_GUID), DRIVER_NAME)
     if control is None:
         raise JiaolongError("WMI control device disappeared during validation")
     return status, control
@@ -415,6 +470,10 @@ def main() -> int:
                 return 2
             if wmi["control_driver"] != DRIVER_NAME:
                 return 3
+            if not wmi["event_present"]:
+                return 4
+            if wmi["event_driver"] != DRIVER_NAME:
+                return 5
             return 0
 
         if args.json:
