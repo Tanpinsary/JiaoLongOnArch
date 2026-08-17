@@ -121,6 +121,12 @@ bash tools/collect-linux.sh /home/tanp/Projects/JiaoLongOnArch-Probe-stage1
 2. 给 `bitland-mifs-wmi` 的事件 probe 增加 Bitland/MECHREVO 机型 DMI 白名单；
 3. 或者把该共享事件 GUID 抽成通用 WMI 事件层，再按 DMI 选择 keymap。
 
+Redmi 侧可供 DMI 白名单参考的公开信息：vrolife/modern_laptop 的
+`redmibook_dmic` 已使用 `DMI_BOARD_NAME` 精确匹配 `TM2113` 和 `TM2107`，
+其 README 还列出 `TM2019`。因此 `redmi-wmi` 至少需要覆盖这些已知型号，
+并应避免使用宽泛前缀影响未知机型。本项目只记录该证据，不代上游作者
+决定最终白名单。
+
 本项目将继续保留本机证据，用于向上游报告或提交修复。
 
 ## 本地验证（未执行，需要 root）
