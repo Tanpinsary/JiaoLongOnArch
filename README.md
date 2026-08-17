@@ -22,12 +22,13 @@ platform profile、键盘 LED、`gpu_mode=hybrid` 和 `kb_mode=fixed` 均
 重绑完成验证，重启持久化方案记录在
 [`docs/linux-stage1-results.md`](docs/linux-stage1-results.md)。
 
-阶段 2 CPU-only 风扇测试已完成，GPU-only 测试在 Hybrid 0 下无法形成
-有效热负载，按计划延后到阶段 4 Discrete 完成后再补做。阶段 3 低风险
-写入已完成：键盘亮度、`kb_mode=cyclic/fixed`、三个 profile 均通过并
-恢复基线；`kb_mode=off` 的固件回读语义待人工复核。当前下一步是阶段 4
-MUX 前置检查；进度见 [`docs/linux-stage2-progress.md`](docs/linux-stage2-progress.md)、
-[`docs/linux-stage3-results.md`](docs/linux-stage3-results.md) 和
+阶段 2 CPU-only 风扇测试已完成。阶段 3 低风险写入已完成：键盘亮度、
+`kb_mode=cyclic/fixed`、三个 profile 均通过并恢复基线；
+`kb_mode=off` 的固件回读语义待人工复核。阶段 4 已通过 BIOS 进入
+Discrete，KDE Wayland 在 NVIDIA 独显直连下正常。下一步补做 GPU-only
+风扇识别；进度见 [`docs/linux-stage2-progress.md`](docs/linux-stage2-progress.md)、
+[`docs/linux-stage3-results.md`](docs/linux-stage3-results.md)、
+[`docs/kde-wayland-discrete.md`](docs/kde-wayland-discrete.md) 和
 [`docs/test-plan.md`](docs/test-plan.md)。
 
 ## 已知固件接口

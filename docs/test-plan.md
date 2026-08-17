@@ -90,19 +90,19 @@ sudo ./tools/stage3-write-test.sh
   需要人工观察背光是否熄灭，才能区分“固件忽略 off”与“GET 不回读 off”；
 - 完整结果见 `docs/linux-stage3-results.md`。
 
-## 阶段 4：MUX（当前下一步）
+## 阶段 4：MUX（进行中：已通过 BIOS 进入 Discrete）
 
-前置检查（2026-08-17 已通过的只读项）：
+2026-08-17 用户已在 BIOS 中切换独显直连；Windows 已不存在，恢复路径为
+BIOS 显卡模式设置。当前状态：
 
+- `gpu_mode=discrete`；
 - `jiaolongctl status=0`，DMI 白名单命中；
-- `gpu_mode=hybrid`，事件 GUID 绑定 `bitland-mifs-wmi`；
 - 圆口 `ADP1 type=Mains online=1`；
 - NVIDIA PCI 设备绑定 `nvidia` 驱动；
-- 存在 `Bitland MIFS WMI hotkeys` input 设备。
+- KDE Wayland 在 NVIDIA 独显下正常，eDP-2 2560x1600@165；
+- `KWIN_DRM_NO_AMS=1` 黑屏事件已排查，见 `docs/kde-wayland-discrete.md`。
 
-仍需人工确认：BIOS 有显卡模式恢复入口、Windows 仍可启动。
-
-仅当上述条件全部满足时测试：
+Linux 工具切换命令仍为：
 
 ```bash
 sudo ./tools/jiaolongctl gpu-mode discrete --confirm-reboot-required
