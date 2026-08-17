@@ -46,7 +46,7 @@ fi
 sampler_pid=$!
 
 nvidia-smi \
-    --query-gpu=timestamp,temperature.gpu,utilization.gpu,power.draw \
+    --query-gpu=timestamp,temperature.gpu,utilization.gpu,power.draw,clocks.sm,clocks.mem,power.limit,enforced.power.limit \
     --format=csv,nounits -l 1 -f "$gpu_csv" &
 logger_pid=$!
 
@@ -77,7 +77,7 @@ echo "Keep at least one vkcube window visible while the load is running."
 
 for ((elapsed = 0; elapsed < duration; elapsed += 10)); do
     sleep 10
-    nvidia-smi --query-gpu=temperature.gpu,utilization.gpu,power.draw --format=csv,noheader || true
+    nvidia-smi --query-gpu=temperature.gpu,utilization.gpu,power.draw,clocks.sm,clocks.mem,enforced.power.limit --format=csv,noheader || true
 done
 
 for pid in "${load_pids[@]:-}"; do

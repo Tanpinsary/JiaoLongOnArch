@@ -43,27 +43,50 @@ CPU 热源。需要 GPU-only 对照才能继续判断。
 - 桌面会话本身有 Firefox、QQ、dsh 等常驻负载，空闲 CPU 温度约
   70–83°C；正式判定前应尽量关闭这些进程，或记录基线并扣除影响。
 
+## vkcube + NVENC 同步运行（2026-08-17 16:34）
+
+第一次同步 GPU 负载使用 2 个 vkcube + 3 路 4K60 `hevc_nvenc`。结果：
+
+- GPU 高 utilization 持续约 237 秒；
+- 功耗中位数 24.0 W，P90 32.1 W，**最大只有 32.17 W**；
+- GPU 温度最大 64°C，几乎没有形成 GPU 热负载；
+- CPU `temp1_input` 反而在负载初期达到 90°C，无法排除 CPU 对风扇的
+  贡献；
+- 该时段的 `fan1`/`fan2` 相关系数 0.9947，仍完全同步。
+
+结论：vkcube 的 99% utilization 是轻量 shader 下的指令/呈现占用，
+不能代表真实 TGP 负载；3 路 NVENC 也只贡献了很少功耗。必须改用
+计算密集负载，并同时记录 SM/MEM 时钟与 enforced power limit。
+
 ## 下一步
 
-1. 在用户桌面终端运行已提供的同步加载脚本。该终端有 `/dev/nvidia*`，
-   而当前研究 shell 没有：
+1. 安装 OpenCL 计算压力工具并确认设备：
+
+   ```bash
+   sudo pacman -S --needed hashcat opencl-nvidia
+   hashcat -I
+   nvidia-smi -q -d POWER,CLOCK
+   ```
+
+   把 `hashcat -I` 的 NVIDIA 设备编号和 `Enforced Power Limit`、
+   `SM Clock` 发回。若 enforced limit 本身就低于 60 W，则是 BIOS/
+   Hybrid 模式的 TGP 策略问题，而不是负载不够。
+
+2. 用 hashcat 跑 NVIDIA-only 计算负载，同时用仓库脚本采样风扇。
+   设备编号确认后，在桌面终端执行：
 
    ```bash
    cd /home/tanp/Projects/jiaolongonarch
    ./tools/stage2-gpu-load.sh 240 120
    ```
 
-   脚本会同时启动 2 个不限制帧率的 vkcube、3 路 `hevc_nvenc` 编码、
-   NVIDIA 遥测 logger 和只读风扇采样器；加载 240 秒后再采样 120 秒
-   冷却曲线，并把结果写入：
+   或手动指定 hashcat 设备：
 
-   ```text
-   /home/tanp/Projects/JiaoLongOnArch-stage2-gpu-*/fans.csv
-   /home/tanp/Projects/JiaoLongOnArch-stage2-gpu-*/gpu.csv
+   ```bash
+   timeout 240 hashcat -b --benchmark-all -d <NVIDIA_DEVICE_ID>
    ```
 
-   运行期间保持至少一个 vkcube 窗口可见；脚本每 10 秒打印一次
-   `temperature.gpu / utilization.gpu / power.draw`。
+3. 继续对比 CPU-only、GPU-only、空闲三段曲线的 fan1/fan2 响应。
 
 2. 对比 CPU-only、GPU-only、空闲三段曲线的 fan1/fan2 响应。
 3. 若 GPU-only 仍让两者同步上升，则向上游报告：功能 13 前两个字段
