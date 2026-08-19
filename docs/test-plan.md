@@ -10,7 +10,7 @@
 - 首份报告为独显直连、平衡 profile、圆口 DC，两个风扇字段约 5,050 RPM。
 - 已通过官方控制中心完成 Discrete 1 → Hybrid 0，重启后的 GET 确认生效；探测脚本本身未执行任何 SET。
 
-## 阶段 1：Arch 真机只读绑定（通过；绑定需要持久化）
+## 阶段 1：Arch 真机只读绑定（通过；本机 workaround 已持久化）
 
 真机结果与完整分析见 `docs/linux-stage1-results.md`。当前状态：
 
@@ -22,8 +22,9 @@
 - hwmon、platform profile、键盘 LED、`gpu_mode=hybrid`、`kb_mode=fixed` 均只读正常；
 - 所有 `--dry-run` 控制路径已完成非 root 校验，未写任何 sysfs。
 
-注意：手动重绑在重启后会失效。持久化方案待定：可以是
-`modprobe.d` 黑名单 `redmi-wmi`，或上游修复后删除本机 workaround。
+手动重绑在重启后会失效。本机现已使用 `modprobe.d` 黑名单
+`redmi-wmi` 持久化 workaround，并在热重启和冷启动后确认事件 GUID
+自动绑定 `bitland-mifs-wmi`。上游修复落地后应删除该 workaround。
 
 阶段 1 通过条件：
 
@@ -33,7 +34,7 @@
 - DMI 精确白名单命中；
 - 不读取或写入 `fan_boost`。
 
-## 阶段 2：风扇字段只读识别（CPU-only 完成；GPU-only 延后到阶段 4）
+## 阶段 2：风扇字段只读识别（完成）
 
 先记录空闲状态，再分别制造 CPU-only 与 GPU-only 负载，每 1–2 秒记录三个 fan input、CPU 温度和 `nvidia-smi` 温度。全过程由 EC 自动控扇，不写任何风扇接口。
 
@@ -57,7 +58,7 @@
 
 详细数据与判断见 `docs/linux-stage2-progress.md`。
 
-## 阶段 3：低风险、可逆写入（当前下一步）
+## 阶段 3：低风险、可逆写入（完成，保留一个上游回读缺口）
 
 按顺序逐项测试，每次写前后读取状态并等待至少一分钟：
 
@@ -90,7 +91,7 @@ sudo ./tools/stage3-write-test.sh
   需要人工观察背光是否熄灭，才能区分“固件忽略 off”与“GET 不回读 off”；
 - 完整结果见 `docs/linux-stage3-results.md`。
 
-## 阶段 4：MUX（进行中：已通过 BIOS 进入 Discrete）
+## 阶段 4：MUX（Discrete 验证完成）
 
 2026-08-17 用户已在 BIOS 中切换独显直连；Windows 已不存在，恢复路径为
 BIOS 显卡模式设置。当前状态：
@@ -113,7 +114,7 @@ sudo ./tools/jiaolongctl gpu-mode discrete --confirm-reboot-required
 Discrete 验证项中的 GPU-only 风扇识别已完成：hashcat 将实际功耗
 压到约 80 W，fan1/fan2 仍同步，阶段 2 结论已归档。
 
-## 阶段 5：挂起、恢复与长期使用（当前下一步）
+## 阶段 5：挂起、恢复与长期使用（进行中）
 
 对每个已验证 profile 完成多次挂起/恢复、冷启动、热重启和 AC 插拔。观察内核日志中的 WMI/ACPI 错误。
 
@@ -137,6 +138,10 @@ Discrete 验证项中的 GPU-only 风扇识别已完成：hashcat 将实际功�
 
 通过条件：`jiaolongctl status=0`，WMI/ACPI 无新错误，profile 与
 `gpu_mode` 保持预期，Wayland 恢复后可用。
+
+当前已完成 `balanced-performance` 下三轮挂起/恢复、AC 插拔、一次热重启
+和一次冷启动。剩余受控热重启复核，以及 quiet/balanced 下的同类循环；
+详见 `docs/linux-stage5-progress.md`。
 
 ## 明确禁止
 

@@ -4,7 +4,9 @@
 
 ## 当前状态
 
-项目处于硬件确认阶段。首个里程碑只覆盖固件公开的 MIFS WMI 接口，不直接写 EC RAM，也不实现 Ryzen SMU、GPU 超频或降压。
+项目已完成硬件确认、低风险控制和 Discrete 模式真机验证，当前处于
+阶段 5 稳定性测试收尾。首个里程碑只覆盖固件公开的 MIFS WMI 接口，
+不直接写 EC RAM，也不实现 Ryzen SMU、GPU 超频或降压。
 
 Linux 上游已经在 2026 年合入 [`bitland-mifs-wmi`](https://github.com/torvalds/linux/blob/master/drivers/platform/x86/bitland-mifs-wmi.c)，目标接口与蛟龙控制中心使用的接口一致。当前 Arch `linux` 已进入 7.1 系列，并明确配置 `CONFIG_BITLAND_MIFS_WMI=m`，因此不再编写会争抢同一 WMI GUID 的重复 DKMS 驱动。本项目优先完成：
 
@@ -22,14 +24,16 @@ platform profile、键盘 LED、`gpu_mode=hybrid` 和 `kb_mode=fixed` 均
 重绑完成验证，重启持久化方案记录在
 [`docs/linux-stage1-results.md`](docs/linux-stage1-results.md)。
 
-阶段 2 CPU-only 风扇测试已完成。阶段 3 低风险写入已完成：键盘亮度、
-`kb_mode=cyclic/fixed`、三个 profile 均通过并恢复基线；
-`kb_mode=off` 的固件回读语义待人工复核。阶段 4 已通过 BIOS 进入
-Discrete，KDE Wayland 在 NVIDIA 独显直连下正常。下一步补做 GPU-only
-风扇识别；进度见 [`docs/linux-stage2-progress.md`](docs/linux-stage2-progress.md)、
+阶段 2 风扇识别已完成：CPU-only 与约 80 W GPU-only 测试均显示前两个
+风扇通道同步，不能可靠标记为 CPU/GPU。阶段 3 低风险写入已完成：键盘
+亮度、`kb_mode=cyclic/fixed`、三个 profile 均通过并恢复基线；
+`kb_mode=off` 的固件回读语义保留为上游缺口。阶段 4 已通过 BIOS 进入
+Discrete，KDE Wayland 在 NVIDIA 独显直连下正常。阶段 5 已完成三轮
+挂起/恢复、AC 插拔、热重启和冷启动，剩余受控热重启复核及另外两个
+profile 的循环；进度见 [`docs/linux-stage2-progress.md`](docs/linux-stage2-progress.md)、
 [`docs/linux-stage3-results.md`](docs/linux-stage3-results.md)、
 [`docs/kde-wayland-discrete.md`](docs/kde-wayland-discrete.md) 和
-[`docs/test-plan.md`](docs/test-plan.md)。
+[`docs/linux-stage5-progress.md`](docs/linux-stage5-progress.md)。
 
 ## 已知固件接口
 
