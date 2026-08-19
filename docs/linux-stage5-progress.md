@@ -19,20 +19,22 @@
   但随后显示恢复，属于可重复的恢复期告警，已记录；
 - 无 ACPI/WMI 新错误。
 
-## AC 插拔
+## AC 插拔（完成，2026-08-19 14:06–14:07）
 
-正在进行，监控文件：
+监控文件：`/home/tanp/Projects/JiaoLongOnArch-stage5-ac-20260819-140609.csv`。
 
-```text
-/home/tanp/Projects/JiaoLongOnArch-stage5-ac-*.csv
-```
+观察：
 
-待完成：圆口 AC 拔出 ≥30 秒后重新插入，对比 `ADP1 online`、BAT0
-状态、hwmon 和 journal。
+- 14:06:53 `ADP1 online` 1 → 0，`BAT0 status` 变为 `Discharging`；
+- 14:07:26 `ADP1 online` 0 → 1，随后 BAT0 回到 `Not charging`；
+- 拔电/插电前后 `fan1/fan2` 约 1,800–1,830 RPM，变化平稳；
+- journal 无新增 ACPI/WMI/bitland 错误；
+- 当前 `ADP1 online=1`，`BAT0 status=Not charging`。
+
+AC 圆口插拔测试通过。
 
 ## 待完成
 
-- AC 插拔一次；
 - 热重启一次；
 - 冷启动一次；
 - 另两个 profile（quiet/balanced）的同样循环。
