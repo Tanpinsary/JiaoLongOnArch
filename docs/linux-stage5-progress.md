@@ -56,8 +56,23 @@ journal 中没有 KDE/power-profiles-daemon 写 profile 的记录，因此更像
 - KWin Wayland 正常；
 - 无新增 ACPI/WMI 错误。
 
+## 受控热重启复核（通过，2026-08-19 16:05–16:09）
+
+重启前运行 `stage5-check.sh balanced-performance-before-reboot`，确认
+`profile=balanced-performance`、`gpu_mode=discrete`、两个 WMI GUID 均绑定
+`bitland-mifs-wmi`。热重启后再次检查：
+
+- profile 保持 `balanced-performance`；
+- `jiaolongctl status=0`，事件 GUID 自动正确绑定；
+- `gpu_mode=discrete`，AC 圆口在线；
+- 无新增 ACPI/WMI 或 KWin 错误。
+
+因此上一次热重启后的 `low-power` 未能复现，更可能是重启前 profile 已被
+其他操作改变，暂不视为固件重启复位问题。
+
+检查脚本同时移除了开发者主目录硬编码：报告现在默认写入仓库内已忽略的
+`artifacts/`，也可用 `STAGE5_OUTPUT_DIR` 指定其他目录。
+
 ## 待完成
 
-- 受控热重启复核：先记录 before，再 `systemctl reboot`，确认上次
-  `low-power` 是否因重启前 profile 已改变；
 - 另两个 profile（quiet/balanced）的同样循环。

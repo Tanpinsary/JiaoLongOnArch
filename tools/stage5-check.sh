@@ -6,7 +6,9 @@ set -euo pipefail
 
 repo=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 label=${1:-cycle}
-out="/home/tanp/Projects/JiaoLongOnArch-stage5-${label}-$(date +%Y%m%d-%H%M%S).log"
+output_dir=${STAGE5_OUTPUT_DIR:-"$repo/artifacts"}
+mkdir -p "$output_dir"
+out="$output_dir/JiaoLongOnArch-stage5-${label}-$(date +%Y%m%d-%H%M%S).log"
 
 {
     echo "stage5 label=$label"

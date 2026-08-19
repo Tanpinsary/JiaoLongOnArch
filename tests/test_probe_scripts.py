@@ -53,6 +53,8 @@ class ProbeScriptSafetyTest(unittest.TestCase):
         self.assertNotIn("tee /sys", code)
         self.assertNotIn("fan_boost", code)
         self.assertNotIn("gpu_mode", code)
+        self.assertNotIn("/home/", code)
+        self.assertIn("STAGE5_OUTPUT_DIR", script)
 
     def test_mifs_probe_contains_get_opcode_only_and_excludes_function_20(self) -> None:
         script = (PROJECT_ROOT / "tools/probe-windows-mifs-readonly.ps1").read_text(
