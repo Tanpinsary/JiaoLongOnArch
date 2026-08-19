@@ -109,6 +109,20 @@ Set-ExecutionPolicy -Scope Process Bypass
 
 工具只允许官方 0.3.15 使用的安静/平衡/性能、Hybrid/Discrete、键盘亮度 0–3 和键盘模式；不提供 `fan_boost`、手动风扇、UMA 或未经蛟龙官方程序使用的全速 profile。MUX 工具永不自动重启。
 
+## 开发与测试
+
+项目的自动测试不访问真实固件，使用临时目录模拟 sysfs。安装开发依赖后
+运行统一检查入口：
+
+```bash
+python3 -m pip install -r requirements-dev.txt
+make check
+```
+
+检查包括 Ruff 静态检查与格式验证、Python 单元测试，以及所有 Shell
+脚本的语法检查。GitHub Actions 会在 push 和 pull request 时运行同一套
+命令。
+
 ## 许可证
 
 代码以 GPL-2.0-or-later 发布。第三方项目和 Linux 上游代码保留各自版权。
