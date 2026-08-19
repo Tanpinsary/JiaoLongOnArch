@@ -33,8 +33,19 @@
 
 AC 圆口插拔测试通过。
 
+## 热重启（完成，2026-08-19 14:13）
+
+- `jiaolongctl status=0`；
+- 事件 GUID 重启后自动绑定 `bitland-mifs-wmi`，黑名单 workaround 生效；
+- `gpu_mode=discrete` 保持；
+- KWin Wayland 正常，无输出配置错误；
+- 无新增 ACPI/WMI 错误。
+
+发现：profile 由重启前的 `balanced-performance` 变为 `low-power`。
+journal 中没有 KDE/power-profiles-daemon 写 profile 的记录，因此更像
+固件重启后默认回到 quiet；该非持久化行为待冷启动复核。
+
 ## 待完成
 
-- 热重启一次；
-- 冷启动一次；
+- 冷启动一次，并在重启前把 profile 设为 `balanced-performance`；
 - 另两个 profile（quiet/balanced）的同样循环。
