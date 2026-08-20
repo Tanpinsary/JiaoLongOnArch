@@ -73,6 +73,19 @@ journal 中没有 KDE/power-profiles-daemon 写 profile 的记录，因此更像
 检查脚本同时移除了开发者主目录硬编码：报告现在默认写入仓库内已忽略的
 `artifacts/`，也可用 `STAGE5_OUTPUT_DIR` 指定其他目录。
 
+## low-power / quiet：完整循环通过（2026-08-19–20）
+
+- 三轮挂起/恢复均保持 `profile=low-power`、`gpu_mode=discrete` 和正确的
+  WMI 绑定；每轮恢复时 KWin 各报一次已知的
+  `Applying output configuration failed!`，随后显示正常；
+- AC 圆口插拔时 `ADP1 online` 完成 1 → 0 → 1，电池随后进入 Charging，
+  fan1/fan2 稳定在约 1,970–1,980 RPM，无新增 WMI/ACPI 错误；
+- 热重启后 profile 保持 `low-power`，NVIDIA 与 eDP-2 165 Hz 正常；
+- 冷启动后 profile 仍保持 `low-power`，`jiaolongctl status=0`，NVIDIA、
+  KDE Wayland 和 eDP-2 165 Hz 正常，无新增 WMI/ACPI 或 KWin 错误；
+- 冷启动检查时 CPU 约 51°C，fan1/fan2 均为 0，符合 quiet 模式低温停转
+  状态，hwmon 设备和其余字段读取正常。
+
 ## 待完成
 
-- 另两个 profile（quiet/balanced）的同样循环。
+- balanced profile 的同样循环。
