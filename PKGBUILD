@@ -10,6 +10,7 @@ depends=('python' 'python-textual' 'polkit')
 makedepends=('git')
 checkdepends=('ruff')
 optdepends=('linux>=7.1: upstream bitland-mifs-wmi kernel driver')
+options=('!debug')
 source=("JiaoLongOnArch::git+${_git_url:-$url.git}#${_source_ref:-tag=v$pkgver}")
 sha256sums=('SKIP')
 
