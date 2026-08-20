@@ -70,6 +70,10 @@ class JiaoLongTuiModelTest(unittest.TestCase):
         self.assertEqual(view.temperature, "59 °C")
         self.assertEqual(view.fans, "1980 / 1976 / 0 RPM")
         self.assertEqual(view.profile, "balanced")
+        self.assertEqual(view.profile_option, "balanced")
+        self.assertEqual(view.gpu_mode, "discrete")
+        self.assertEqual(view.keyboard_mode, "fixed")
+        self.assertEqual(view.brightness, "2")
         self.assertEqual(view.keyboard, "fixed / 2/3")
 
 

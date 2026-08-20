@@ -28,7 +28,17 @@ class Dashboard:
     profile: str
     gpu_mode: str
     keyboard: str
+    keyboard_mode: str
+    brightness: str
     write_ready: bool
+
+    @property
+    def profile_option(self) -> str | None:
+        return {
+            "low-power": "quiet",
+            "balanced": "balanced",
+            "balanced-performance": "performance",
+        }.get(self.profile)
 
 
 def build_command(
@@ -117,5 +127,7 @@ def dashboard_from_status(status: dict[str, Any]) -> Dashboard:
         profile=profile,
         gpu_mode=values.get("gpu_mode", "unavailable"),
         keyboard=f"{values.get('kb_mode', 'unavailable')} / {brightness}/{maximum}",
+        keyboard_mode=values.get("kb_mode", "unavailable"),
+        brightness=brightness,
         write_ready=write_ready,
     )
