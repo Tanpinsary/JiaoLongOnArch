@@ -109,13 +109,28 @@ Set-ExecutionPolicy -Scope Process Bypass
 
 工具只允许官方 0.3.15 使用的安静/平衡/性能、Hybrid/Discrete、键盘亮度 0–3 和键盘模式；不提供 `fan_boost`、手动风扇、UMA 或未经蛟龙官方程序使用的全速 profile。MUX 工具永不自动重启。
 
-## 开发与测试
+## 交互式 TUI
 
-项目的自动测试不访问真实固件，使用临时目录模拟 sysfs。安装开发依赖后
-运行统一检查入口：
+使用 [uv](https://docs.astral.sh/uv/) 同步锁定依赖后，以普通用户启动：
 
 ```bash
-python3 -m pip install -r requirements-dev.txt
+uv sync
+uv run ./tools/jiaolong-tui
+```
+
+TUI 每 5 秒只读刷新温度、风扇、profile、MUX、键盘和驱动状态。写操作
+仍由 `jiaolongctl` 完成，并通过 `pkexec` 单独请求管理员授权；不要使用
+`sudo` 启动整个 TUI。GPU/MUX 操作保留重启二次确认，界面不会自动重启。
+
+后续界面与核心模块化计划见 [`docs/roadmap.md`](docs/roadmap.md)。
+
+## 开发与测试
+
+项目的自动测试不访问真实固件，使用临时目录模拟 sysfs。依赖和开发工具
+由 uv 根据 `pyproject.toml` / `uv.lock` 管理：
+
+```bash
+uv sync --locked --dev
 make check
 ```
 
