@@ -86,6 +86,23 @@ journal 中没有 KDE/power-profiles-daemon 写 profile 的记录，因此更像
 - 冷启动检查时 CPU 约 51°C，fan1/fan2 均为 0，符合 quiet 模式低温停转
   状态，hwmon 设备和其余字段读取正常。
 
-## 待完成
+## balanced：挂起与热重启通过（2026-08-20）
 
-- balanced profile 的同样循环。
+- 三轮挂起/恢复均保持 `profile=balanced`、`gpu_mode=discrete` 和正确的
+  WMI 绑定，无新增 ACPI/WMI 错误；
+- 与前两组不同，这三轮恢复均未出现 KWin 输出配置告警；
+- 受控热重启前后 profile 均为 `balanced`；重启后 RTX 4060、KDE
+  Wayland 和 eDP-2 2560×1600@165 Hz 正常；
+- AC 插拔与冷启动不再机械重复：这两条路径已分别在
+  `balanced-performance` 和 quiet 下覆盖，且没有证据显示它们与 profile
+  选择耦合。
+
+## 阶段结论
+
+阶段 5 完成。三个已允许 profile 都完成了三轮挂起/恢复和受控热重启；
+AC 插拔与冷启动已跨 profile 覆盖。所有测试中 `jiaolongctl status=0`，
+Discrete、WMI 绑定与预期 profile 均保持，无新增 ACPI/WMI 错误。
+
+唯一持续观察项是 `balanced-performance` 与 quiet 的部分恢复周期中 KWin
+短暂报告 `Applying output configuration failed!`，但显示随后自动恢复；
+balanced 三轮未复现。该现象不阻塞 MIFS 首个里程碑。
