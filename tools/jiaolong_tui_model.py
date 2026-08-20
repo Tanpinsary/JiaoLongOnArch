@@ -3,12 +3,16 @@
 
 from __future__ import annotations
 
-import json
 import os
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Sequence
+
+try:
+    from .jiaolong_core import collect_status
+except ImportError:
+    from jiaolong_core import collect_status
 
 PROFILE_OPTIONS = ("quiet", "balanced", "performance")
 KEYBOARD_MODES = ("off", "cyclic", "fixed", "custom")
@@ -56,19 +60,9 @@ def build_command(
     return command
 
 
-def run_json_status(tool: Path) -> dict[str, Any]:
-    result = subprocess.run(
-        build_command(tool, ("--json", "status"), write=False),
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode not in (0, 2, 3, 4, 5):
-        raise TuiCommandError(result.stderr.strip() or "status command failed")
-    try:
-        return json.loads(result.stdout)
-    except json.JSONDecodeError as error:
-        raise TuiCommandError("jiaolongctl returned invalid JSON") from error
+def read_status() -> dict[str, Any]:
+    """Read status in-process; this path never requests privilege."""
+    return collect_status()
 
 
 def run_action(tool: Path, arguments: Sequence[str]) -> str:

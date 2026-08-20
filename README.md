@@ -124,6 +124,26 @@ TUI 每 5 秒只读刷新温度、风扇、profile、MUX、键盘和驱动状态
 
 后续界面与核心模块化计划见 [`docs/roadmap.md`](docs/roadmap.md)。
 
+### 系统安装（Arch）
+
+从仓库运行时继续使用上面的 uv 命令。需要安装成系统命令和 polkit action
+时，先安装发行版提供的运行时依赖，再运行安装器：
+
+```bash
+sudo pacman -S python-textual
+sudo ./tools/install-linux.sh
+jiaolong-tui
+```
+
+安装器把 CLI、TUI 和受限 helper 放在 `/usr/lib/jiaolongonarch/`，只在
+`/usr/bin/` 建立 CLI/TUI 链接。polkit 只授权固定路径的 helper；helper
+仅接受已审核的 profile、键盘和 Hybrid/Discrete 参数，不接受任意 sysfs
+路径或任意值。卸载不会修改固件状态：
+
+```bash
+sudo ./tools/uninstall-linux.sh
+```
+
 ## 开发与测试
 
 项目的自动测试不访问真实固件，使用临时目录模拟 sysfs。依赖和开发工具

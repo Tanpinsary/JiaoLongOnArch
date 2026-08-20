@@ -1,0 +1,59 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-2.0-or-later
+"""Narrow privileged entry point for reviewed JiaoLong firmware controls."""
+
+from __future__ import annotations
+
+import argparse
+import os
+import sys
+
+from jiaolong_core import (
+    GPU_MODES,
+    KEYBOARD_MODES,
+    PROFILE_MAP,
+    JiaolongError,
+    set_gpu_mode,
+    set_keyboard_brightness,
+    set_keyboard_mode,
+    set_profile,
+)
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Restricted JiaoLong control helper")
+    commands = parser.add_subparsers(dest="command", required=True)
+    profile = commands.add_parser("profile")
+    profile.add_argument("mode", choices=tuple(PROFILE_MAP))
+    keyboard = commands.add_parser("keyboard-mode")
+    keyboard.add_argument("mode", choices=KEYBOARD_MODES)
+    brightness = commands.add_parser("keyboard-brightness")
+    brightness.add_argument("level", type=int, choices=range(4))
+    gpu = commands.add_parser("gpu-mode")
+    gpu.add_argument("mode", choices=GPU_MODES)
+    gpu.add_argument("--confirm-reboot-required", action="store_true", required=True)
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    if os.geteuid() != 0 and "JIAOLONG_SYSFS_ROOT" not in os.environ:
+        print("error: privileged helper must run as root", file=sys.stderr)
+        return 4
+    args = build_parser().parse_args(argv)
+    try:
+        if args.command == "profile":
+            set_profile(args.mode)
+        elif args.command == "keyboard-mode":
+            set_keyboard_mode(args.mode)
+        elif args.command == "keyboard-brightness":
+            set_keyboard_brightness(args.level)
+        elif args.command == "gpu-mode":
+            set_gpu_mode(args.mode, confirmed=args.confirm_reboot_required)
+        return 0
+    except JiaolongError as error:
+        print(f"error: {error}", file=sys.stderr)
+        return 4
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

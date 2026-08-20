@@ -22,12 +22,13 @@
 验收标准：现有 CLI 行为和测试保持兼容；TUI 在没有 root 权限时可以查看
 状态；所有写操作仍经过 `jiaolongctl` 的 DMI、驱动绑定和范围校验。
 
-### 6.2 核心模块化
+### 6.2 核心模块化（完成）
 
-- [ ] 将 `jiaolongctl` 的状态采集和安全操作抽成可导入 Python 包；
-- [ ] CLI 与 TUI 共用包级 API，并保持当前 CLI 参数兼容；
-- [ ] 设计受限 polkit action/helper，替代通用 `pkexec` 程序启动；
-- [ ] 增加安装、卸载和发行包。
+- [x] 提供可导入核心 API，复用 `jiaolongctl` 的状态采集和安全操作；
+- [x] TUI 直接读取核心 API，CLI 参数保持兼容；
+- [x] 设计只接受固定动作和值的 polkit helper，替代 TUI 直接提权 CLI；
+- [x] 增加 polkit policy 与安装、卸载脚本；
+- [ ] 制作 Arch `PKGBUILD` 和正式发行包。
 
 ## 里程碑 7：桌面前端（候选）
 

@@ -24,12 +24,12 @@ from jiaolong_tui_model import (
     PROFILE_OPTIONS,
     TuiCommandError,
     dashboard_from_status,
+    read_status,
     run_action,
-    run_json_status,
 )
 
-ROOT = Path(__file__).resolve().parents[1]
-CONTROL_TOOL = ROOT / "tools" / "jiaolongctl"
+TOOLS_DIR = Path(__file__).resolve().parent
+CONTROL_HELPER = TOOLS_DIR / "jiaolong-helper"
 
 
 class ConfirmMux(ModalScreen[bool]):
@@ -161,7 +161,7 @@ class JiaoLongTui(App[None]):
     @work(thread=True, exclusive=True, group="status")
     def refresh_status(self) -> None:
         try:
-            view = dashboard_from_status(run_json_status(CONTROL_TOOL))
+            view = dashboard_from_status(read_status())
         except TuiCommandError as error:
             self.call_from_thread(self.show_message, f"Status error: {error}", True)
             return
@@ -217,7 +217,7 @@ class JiaoLongTui(App[None]):
     @work(thread=True, exclusive=True, group="action")
     def execute(self, arguments: tuple[str, ...]) -> None:
         try:
-            message = run_action(CONTROL_TOOL, arguments)
+            message = run_action(CONTROL_HELPER, arguments)
         except TuiCommandError as error:
             self.call_from_thread(self.show_message, str(error), True)
             return
