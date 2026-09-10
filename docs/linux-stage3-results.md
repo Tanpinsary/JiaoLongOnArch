@@ -74,5 +74,3 @@ error: write did not read back as requested: expected='off', observed='fixed'
 - 用户决定在进入阶段 4 前将键盘亮度设置为 0；
 - 所有测试结束后系统已恢复到亮度 3、`kb_mode=fixed`、
   `profile=balanced-performance`；
-- 完整日志：
-  `/home/tanp/Projects/JiaoLongOnArch-stage3-20260817-223612/run.log`。

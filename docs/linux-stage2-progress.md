@@ -5,7 +5,7 @@
 
 ## 已确认
 
-- 采样工具：`tools/fan-sample.py`，只读，已通过单元测试。
+- 验证期间的采样只读取 hwmon 与 NVIDIA 指标，不写入任何风扇或 EC 接口。
 - 当前 `hwmon` 标签为上游预设 `fan1=CPU`、`fan2=GPU`、`fan3=SYS`；
   这些标签在阶段 2 完成前只能视为字段名，不是验证结论。
 - `fan3` 在本机始终为 0 RPM，与 Windows GET 样本一致。

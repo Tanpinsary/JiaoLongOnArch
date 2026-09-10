@@ -1,5 +1,6 @@
-# Local analysis artifacts
+# Local artifacts
 
-Place the official `JLkzzxSetup.zip` here for local interoperability analysis.
-Vendor installers and extracted proprietary binaries are ignored by Git and
-must never be committed or redistributed from this repository.
+This directory is intentionally empty in Git. Local validation output, vendor
+installers, extracted binaries, raw probe reports, and measurements are ignored
+and must never be committed or redistributed. Record durable findings in
+`docs/` instead.

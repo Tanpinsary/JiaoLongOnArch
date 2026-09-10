@@ -66,7 +66,7 @@ redmi-wmi:
 
 ## 已确认的驱动节点读数
 
-`./tools/jiaolongctl status` 和 `./tools/collect-linux.sh` 的实测输出：
+`./tools/jiaolongctl status` 与对应 sysfs 节点的实测读数：
 
 - `hwmon6 name=bitland_mifs`；
   - `temp1_input` 约 54,000–67,000 m°C（54–67°C）；
@@ -84,13 +84,12 @@ redmi-wmi:
 
 ## 发现的工具缺陷
 
-初版 `jiaolongctl` 和 `collect-linux.sh` 使用裸 GUID 拼接 sysfs 路径，
-而真实节点为 `GUID-INSTANCE`，因此把两个已存在的 WMI 设备误报为
+初版 `jiaolongctl` 使用裸 GUID 拼接 sysfs 路径，而真实节点为
+`GUID-INSTANCE`，因此把两个已存在的 WMI 设备误报为
 `absent`。已修复为同时匹配裸 GUID 与数字实例后缀，并新增冲突诊断：
 
 ```bash
 python3 tools/jiaolongctl --json status
-bash tools/collect-linux.sh /home/tanp/Projects/JiaoLongOnArch-Probe-stage1
 ```
 
 `status` 返回码定义：

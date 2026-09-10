@@ -1,6 +1,7 @@
-# 分阶段真机测试计划
+# 分阶段真机验证记录
 
-所有阶段都要求连接原装圆口电源、保持散热口通畅，并保留可进入 BIOS/Windows 的恢复路径。
+本文件保留完成的真机验证方法与结论。原始报告、测量数据和一次性测试脚本
+不随工具发行；可复用的结论已整理到各阶段结果文档。
 
 ## 阶段 0：Windows 元数据与 GET（完成）
 
@@ -8,7 +9,7 @@
 - 已确认活动实例 `ACPI\\PNP0C14\\MIFS_0` 与 HID 事件类存在。
 - 精确白名单下 14 个官方 GET 全部成功，功能 20 被刻意跳过。
 - 首份报告为独显直连、平衡 profile、圆口 DC，两个风扇字段约 5,050 RPM。
-- 已通过官方控制中心完成 Discrete 1 → Hybrid 0，重启后的 GET 确认生效；探测脚本本身未执行任何 SET。
+- 已通过官方控制中心完成 Discrete 1 → Hybrid 0，重启后的 GET 确认生效；只读验证未执行任何 SET。
 
 ## 阶段 1：Arch 真机只读绑定（通过；本机 workaround 已持久化）
 
@@ -38,13 +39,8 @@
 
 先记录空闲状态，再分别制造 CPU-only 与 GPU-only 负载，每 1–2 秒记录三个 fan input、CPU 温度和 `nvidia-smi` 温度。全过程由 EC 自动控扇，不写任何风扇接口。
 
-只读采样器已提供：
-
-```bash
-./tools/fan-sample.py --duration 300 --interval 1 > fan-idle.csv
-```
-
-默认会额外调用 `nvidia-smi --query-gpu=temperature.gpu`；无 NVIDIA 驱动或只需要 hwmon 时加 `--no-gpu`。该工具没有任何 sysfs/文件写入路径，单元测试已覆盖。
+验证期间使用只读 hwmon 与 NVIDIA 指标采样；原始 CSV 已提炼为
+`docs/linux-stage2-progress.md` 中的数据和判断。
 
 目标：确定功能 13 的前两个 RPM 字段究竟对应 CPU、GPU，还是主循环/辅助循环；同时核对 WMI 事件 RPM 字节序。确认前不向上游提交标签修复。
 
@@ -72,15 +68,8 @@
 读回对应 sysfs 值，并等待至少一分钟确认无异常。`--dry-run` 路径已在
 真机全部校验通过，但 dry-run 不替代实际写入复核。
 
-已提供阶段 3 自动测试脚本，按顺序测试并在最后恢复基线：
-
-```bash
-sudo ./tools/stage3-write-test.sh
-```
-
-默认每项等待 60 秒；可用 `WAIT_SECONDS=30 sudo -E ./tools/stage3-write-test.sh`
-缩短等待，但正式结果仍按默认值记录。脚本只写阶段 3 接口，不包含
-`fan_boost`、`gpu_mode`、UMA、EC RAM 或任意 WMI 方法。
+验证按上述顺序通过 `jiaolongctl` 执行，每步等待 60 秒并读回对应状态；
+最后恢复基线。一次性编排脚本和原始日志未随工具保留。
 
 当前进度与发现：
 
@@ -118,23 +107,17 @@ Discrete 验证项中的 GPU-only 风扇识别已完成：hashcat 将实际功�
 
 对每个已验证 profile 完成多次挂起/恢复、冷启动、热重启和 AC 插拔。观察内核日志中的 WMI/ACPI 错误。
 
-当前环境：Discrete、KDE Wayland、Arch-only、BIOS 作为恢复路径。
-每轮测试使用只读检查器：
+当前环境：Discrete、KDE Wayland、Arch-only、BIOS 作为恢复路径。验证先从
+`balanced-performance` 开始：
 
-```bash
-./tools/stage5-check.sh <label>
-```
-
-建议第一轮先做 `balanced-performance`：
-
-1. 基线：`./tools/stage5-check.sh balanced-performance-before`；
+1. 记录基线状态；
 2. 挂起：`systemctl suspend`，用电源键/开盖唤醒；
-3. 恢复后：`./tools/stage5-check.sh balanced-performance-after-suspend`；
+3. 恢复后复查状态；
 4. 检查 KDE Wayland、外接显示器、键盘热键、`nvidia-smi`；
 5. 重复挂起/恢复至少 3 次；
 6. AC 圆口插拔一次，记录前后 `ADP1 online` 和 hwmon；
-7. 热重启一次，重启后运行 stage5-check；
-8. 冷启动一次，重启后运行 stage5-check。
+7. 热重启一次，重启后复查状态；
+8. 冷启动一次，重启后复查状态。
 
 通过条件：`jiaolongctl status=0`，WMI/ACPI 无新错误，profile 与
 `gpu_mode` 保持预期，Wayland 恢复后可用。

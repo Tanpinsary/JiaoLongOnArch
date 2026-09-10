@@ -10,7 +10,7 @@
 - Textual TUI：温度、风扇、profile、MUX、键盘与驱动状态；
 - quiet、balanced、performance，键盘亮度/模式和 Hybrid/Discrete 控制；
 - 受限 polkit helper、Arch/Linux 安装与卸载脚本；
-- Windows/Linux 只读采集与分阶段真机检查工具。
+- Arch Linux 上的状态检查、受限控制与交互式界面。
 
 ### 真机验证
 

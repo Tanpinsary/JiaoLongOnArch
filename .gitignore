@@ -17,11 +17,9 @@ __pycache__/
 Module.symvers
 modules.order
 
-# Probe reports
-JiaoLongOnArch-Probe-*.zip
-JiaoLongOnArch-Probe-*/
-
-# Local proprietary artifacts: never commit vendor installers or binaries.
+# Local validation output and proprietary artifacts. Findings belong in docs/;
+# raw reports, measurements, installers, and binaries never belong in Git.
+JiaoLongOnArch-*
 artifacts/*
 !artifacts/README.md
 

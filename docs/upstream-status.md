@@ -42,7 +42,7 @@ zgrep CONFIG_BITLAND_MIFS_WMI /proc/config.gz
 modinfo bitland-mifs-wmi
 sudo modprobe bitland-mifs-wmi
 ./tools/jiaolongctl
-./tools/collect-linux.sh
+./tools/jiaolongctl status
 ```
 
 初次测试只读取状态。确认 DMI、WMI GUID、字段顺序和 BIOS 恢复入口以前，不写 `gpu_mode`、`fan_boost` 或性能模式。
