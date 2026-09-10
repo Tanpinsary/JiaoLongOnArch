@@ -1,108 +1,60 @@
 # JiaoLongOnArch
 
-机械革命蛟龙 16 Pro（2023，Ryzen 7 7745HX / RTX 4060）的 Arch Linux
-固件控制工具。
+JiaoLongOnArch is a small, safety-focused userspace control tool for the 2023
+MECHREVO Jiaolong 16 Pro (`MRID6-23`, Ryzen 7 7745HX / RTX 4060) on Arch Linux.
+It works with the upstream `bitland-mifs-wmi` kernel driver and deliberately
+does not ship a competing DKMS module.
 
-## 当前状态
+The project provides a command-line interface, a Textual TUI, and a restricted
+polkit helper. It turns the firmware controls already exposed by the upstream
+driver into an explicit, model-checked interface.
 
-项目已完成硬件确认、低风险控制、Discrete 模式和阶段 5 稳定性真机验证。
-首个里程碑只覆盖固件公开的 MIFS WMI 接口，
-不直接写 EC RAM，也不实现 Ryzen SMU、GPU 超频或降压。
+## Scope
 
-Linux 上游已经在 2026 年合入 [`bitland-mifs-wmi`](https://github.com/torvalds/linux/blob/master/drivers/platform/x86/bitland-mifs-wmi.c)，目标接口与蛟龙控制中心使用的接口一致。当前 Arch `linux` 已进入 7.1 系列，并明确配置 `CONFIG_BITLAND_MIFS_WMI=m`，因此不再编写会争抢同一 WMI GUID 的重复 DKMS 驱动。本项目提供内核自带驱动的安全用户态控制工具：`jiaolongctl`、交互式 `jiaolong-tui` 和受限 polkit helper。机型确认、Windows 对照和真机验证已经整理为 `docs/` 中的文档；仓库不包含原始探测报告、测量数据或 Windows 采集脚本。
+- Read temperatures, fan channels, power profile, GPU mode, keyboard state,
+  driver binding, and DMI compatibility.
+- Select the verified `quiet`, `balanced`, and `performance` profiles.
+- Set keyboard brightness and mode, and select Hybrid or Discrete GPU mode.
+- Require an exact DMI, motherboard, and BIOS allowlist match before a write.
 
-Windows 报告已确认本机为 `Jiaolong Series MRID6` / `MRID6-23` / BIOS `MRID6_23_P_V35`，活动实例为 `ACPI\\PNP0C14\\MIFS_0`；精确白名单下的 14 个 GET 全部成功。用户已经通过官方控制中心完成 Discrete 1 → Hybrid 0 并重启复查。
+This is not an arbitrary WMI or EC write utility. It does not expose manual
+fan control, `fan_boost`, UMA mode, firmware profile 3, EC RAM access, Ryzen
+SMU controls, GPU overclocking, undervolting, or power-limit changes.
 
-Arch 7.1.6 真机阶段 1 已通过：DMI 白名单、控制 GUID、hwmon、
-platform profile、键盘 LED、`gpu_mode=hybrid` 和 `kb_mode=fixed` 均
-只读正常。事件 GUID 与 `redmi-wmi` 存在上游 alias 冲突，已通过 sysfs
-重绑完成验证，重启持久化方案记录在
-[`docs/linux-stage1-results.md`](docs/linux-stage1-results.md)。
+## Requirements
 
-阶段 2 风扇识别已完成：CPU-only 与约 80 W GPU-only 测试均显示前两个
-风扇通道同步，不能可靠标记为 CPU/GPU。阶段 3 低风险写入已完成：键盘
-亮度、`kb_mode=cyclic/fixed`、三个 profile 均通过并恢复基线；
-`kb_mode=off` 的固件回读语义保留为上游缺口。阶段 4 已通过 BIOS 进入
-Discrete，KDE Wayland 在 NVIDIA 独显直连下正常。阶段 5 已完成三个允许
-profile 的挂起/恢复与热重启，并跨 profile 覆盖 AC 插拔和冷启动；进度见
-[`docs/linux-stage2-progress.md`](docs/linux-stage2-progress.md)、
-[`docs/linux-stage3-results.md`](docs/linux-stage3-results.md)、
-[`docs/kde-wayland-discrete.md`](docs/kde-wayland-discrete.md) 和
-[`docs/linux-stage5-progress.md`](docs/linux-stage5-progress.md)。
+- Arch Linux with a kernel that includes `bitland-mifs-wmi` (Arch Linux 7.1 or
+  later).
+- The targeted MRID6-23 machine and supported BIOS. Read-only status remains
+  useful elsewhere; firmware writes are refused when the allowlist does not
+  match.
+- `python-textual` and polkit for a system-wide installation.
 
-## 已知固件接口
-
-- 控制 GUID：`B60BFB48-3E5B-49E4-A0E9-8CFFE1B3434B`
-- 事件 GUID：`46C93E13-EE9B-4262-8488-563BCA757FEF`
-- WMI 方法 ID：`1`
-- 32 字节请求：字节 1 为操作码，字节 3 为功能号，字节 4 起为参数
-
-协议细节见 [`docs/protocol.md`](docs/protocol.md)，目标 DMI 见 [`docs/hardware.md`](docs/hardware.md)，Windows 固件读取结果见 [`docs/windows-read-results.md`](docs/windows-read-results.md)，Arch 7.1 阶段 1 结果见 [`docs/linux-stage1-results.md`](docs/linux-stage1-results.md)，内核与 Arch 集成状态见 [`docs/upstream-status.md`](docs/upstream-status.md)，官方 Windows 样本记录见 [`docs/windows-package.md`](docs/windows-package.md)，真机步骤见 [`docs/test-plan.md`](docs/test-plan.md)。
-
-## Arch 内核驱动
-
-安装最新 Arch 后先检查，不需要安装第三方模块：
+Check that the upstream driver is available before using the controls:
 
 ```bash
 zgrep CONFIG_BITLAND_MIFS_WMI /proc/config.gz
 modinfo bitland-mifs-wmi
 sudo modprobe bitland-mifs-wmi
-```
-
-只有在 `/sys/bus/wmi/devices/` 中存在上述控制 GUID 时，驱动才会绑定。第一次只读取温度、风扇、性能模式和 GPU 模式；不要立即写 `fan_boost` 或 `gpu_mode`。
-
-## 安全原则
-
-- 未确认 DMI/WMI 前不执行任何固件写操作。
-- 首次使用先运行只读的 `jiaolongctl status`，不执行任何固件控制。
-- 不提供任意 WMI/EC 写入通道。
-- MUX 写入必须单独确认，切换后通常需要重启。
-- 自定义风扇曲线不属于首版范围；若以后实现，必须具备自动恢复 EC 控制和超温故障保护。
-
-## Linux 检查与保守控制
-
-安装 Arch 后，第一轮只运行：
-
-```bash
 ./tools/jiaolongctl status
 ```
 
-`jiaolongctl` 已实现精确 DMI/主板/BIOS 白名单、上游驱动绑定检查和以下受限命令。可以先使用全流程校验但不写 sysfs 的 `--dry-run`，它不需要 root：
+## Start the TUI
 
-```bash
-./tools/jiaolongctl --dry-run profile balanced
-./tools/jiaolongctl --dry-run keyboard-brightness 2
-./tools/jiaolongctl --dry-run keyboard-mode fixed
-./tools/jiaolongctl --dry-run gpu-mode hybrid --confirm-reboot-required
-```
-
-蛟龙真机在 Linux 7.1 上存在事件 GUID 与 `redmi-wmi` 的绑定冲突：
-`jiaolongctl status` 返回 5 时，需要先按
-[`docs/linux-stage1-results.md`](docs/linux-stage1-results.md)
-把事件设备重绑到 `bitland-mifs-wmi`，写入命令才会放行。实际写入命令
-仍需要 root。
-
-工具只允许官方 0.3.15 使用的安静/平衡/性能、Hybrid/Discrete、键盘亮度 0–3 和键盘模式；不提供 `fan_boost`、手动风扇、UMA 或未经蛟龙官方程序使用的全速 profile。MUX 工具永不自动重启。
-
-## 交互式 TUI
-
-使用 [uv](https://docs.astral.sh/uv/) 同步锁定依赖后，以普通用户启动：
+From a development checkout, install the locked Python dependencies and run
+the TUI as your regular user:
 
 ```bash
 uv sync
 uv run ./tools/jiaolong-tui
 ```
 
-TUI 每 5 秒只读刷新温度、风扇、profile、MUX、键盘和驱动状态。写操作
-仍由 `jiaolongctl` 完成，并通过 `pkexec` 单独请求管理员授权；不要使用
-`sudo` 启动整个 TUI。GPU/MUX 操作保留重启二次确认，界面不会自动重启。
+The dashboard refreshes read-only state every five seconds. When a control
+needs administrator rights, the TUI invokes the restricted helper through
+`pkexec`; do not start the whole TUI with `sudo`. GPU-mode changes require an
+explicit reboot confirmation and never reboot the machine automatically.
 
-后续界面与核心模块化计划见 [`docs/roadmap.md`](docs/roadmap.md)。
-
-### 系统安装（Arch）
-
-从仓库运行时继续使用上面的 uv 命令。需要安装成系统命令和 polkit action
-时，先安装发行版提供的运行时依赖，再运行安装器：
+For a system-wide installation:
 
 ```bash
 sudo pacman -S python-textual
@@ -110,28 +62,53 @@ sudo ./tools/install-linux.sh
 jiaolong-tui
 ```
 
-安装器把 CLI、TUI 和受限 helper 放在 `/usr/lib/jiaolongonarch/`，只在
-`/usr/bin/` 建立 CLI/TUI 链接。polkit 只授权固定路径的 helper；helper
-仅接受已审核的 profile、键盘和 Hybrid/Discrete 参数，不接受任意 sysfs
-路径或任意值。卸载不会修改固件状态：
+This installs `jiaolongctl`, `jiaolong-tui`, and the narrowly scoped polkit
+helper. Remove them with `sudo ./tools/uninstall-linux.sh`.
+
+## CLI
+
+Start with the read-only status command. Dry runs validate the complete write
+path without changing sysfs:
 
 ```bash
-sudo ./tools/uninstall-linux.sh
+./tools/jiaolongctl status
+./tools/jiaolongctl --dry-run profile balanced
+./tools/jiaolongctl --dry-run keyboard-brightness 2
+./tools/jiaolongctl --dry-run gpu-mode hybrid --confirm-reboot-required
 ```
 
-## 开发与测试
+On this hardware, the WMI event GUID can be claimed by `redmi-wmi`. If
+`jiaolongctl status` returns 5, follow the documented binding workaround before
+attempting any write.
 
-项目的自动测试不访问真实固件，使用临时目录模拟 sysfs。依赖和开发工具
-由 uv 根据 `pyproject.toml` / `uv.lock` 管理：
+## Packaging and AUR
+
+**AUR status: not published.** The repository includes a `PKGBUILD` for the
+tagged release and future AUR packaging, but there is currently no
+`jiaolongonarch` AUR package to install with an AUR helper. Until then, use the
+system-wide installation above or build from the included `PKGBUILD`.
+
+## Documentation
+
+The repository keeps conclusions and reproducible instructions, not raw probe
+reports or measurement dumps. See:
+
+- [hardware](docs/hardware.md) and [protocol](docs/protocol.md)
+- [upstream and Arch integration](docs/upstream-status.md)
+- [validated behavior and known limits](docs/test-plan.md)
+- [TUI and core roadmap](docs/roadmap.md)
+
+The verified MRID6-23 results cover the driver binding, conservative keyboard
+and profile controls, Discrete mode, and suspend/resume stability. The detailed
+evidence remains in `docs/`.
+
+## Development
+
+Tests use temporary sysfs fixtures and do not touch firmware:
 
 ```bash
 uv sync --locked --dev
 make check
 ```
 
-检查包括 Ruff 静态检查与格式验证、Python 单元测试，以及安装和卸载脚本的
-语法检查。GitHub Actions 会在 push 和 pull request 时运行同一套命令。
-
-## 许可证
-
-代码以 GPL-2.0-or-later 发布。第三方项目和 Linux 上游代码保留各自版权。
+Licensed under GPL-2.0-or-later.
